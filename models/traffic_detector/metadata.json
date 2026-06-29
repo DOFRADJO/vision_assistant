@@ -1,0 +1,41 @@
+{
+  "model": "crosswalk_traffic_light_detector",
+  "generated_at": "2026-06-29T07:55:43.736401+00:00",
+  "task": "object_detection",
+  "architecture": "YOLOv8n",
+  "input": {
+    "image_size": 640,
+    "format": "RGB"
+  },
+  "classes": [
+    "crosswalk",
+    "traffic_light_red",
+    "traffic_light_yellow",
+    "traffic_light_green",
+    "pedestrian_signal_red",
+    "pedestrian_signal_green"
+  ],
+  "thresholds": {
+    "confidence": 0.4,
+    "iou_nms": 0.45
+  },
+  "output_contract": {
+    "description": "Respecte le contrat d'interface commun du projet : {'model': str, 'detections': [{'label': str, 'confidence': float, 'bbox': [x1, y1, x2, y2]}]}",
+    "example": {
+      "model": "crosswalk_traffic_light_detector",
+      "detections": [
+        {
+          "label": "pedestrian_signal_green",
+          "confidence": 0.91,
+          "bbox": [
+            120,
+            85,
+            230,
+            470
+          ]
+        }
+      ]
+    }
+  },
+  "author_module_path": "training/crosswalk_traffic_light_detector/"
+}
