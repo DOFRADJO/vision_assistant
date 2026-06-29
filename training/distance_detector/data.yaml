@@ -1,17 +1,8 @@
-# ============================================================
-# Distance Detector — Configuration Dataset YOLOv8
-# Auteur : MBIDA NGUELE Paul Loïc
-# Description : Détection et estimation de la distance
-#               des personnes (proche / loin)
-# ============================================================
-
-path: ./dataset          # Dossier racine du dataset
-train: images/train      # Images d'entraînement
-val: images/val          # Images de validation
-
-# Classes
-nc: 2                    # Nombre de classes
-
 names:
-  0: close_person        # Personne proche (bbox grande)
-  1: far_person          # Personne loin (bbox petite)
+- close_person
+- far_person
+nc: 2
+path: /content/Person-detection-1
+test: test/images
+train: train/images
+val: valid/images
