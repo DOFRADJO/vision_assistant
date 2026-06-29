@@ -32,3 +32,5 @@ Thumbs.db
 # Models temporaires
 *.pt.bak
 *.onnx.bak
+
+*.sh
