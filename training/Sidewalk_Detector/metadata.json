@@ -1,7 +1,7 @@
 {
   "model": "sidewalk_detector",
   "version": "1.0.0",
-  "author": "Bright",
+  "author": "NGONO_VANINA",
   "framework": "YOLOv8",
   "architecture": "YOLOv8n",
   "input": {
