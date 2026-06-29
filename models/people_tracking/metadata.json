@@ -1,0 +1,24 @@
+{
+  "model_name": "people_tracking",
+  "model": "motion_tracker",
+  "version": "1.0.0",
+  "author": "MEZAGO WILFRIED AYMAR",
+  "matricule": "22P001",
+  "task": "Mouvement et Tracking Personnes",
+  "course": "AIA-4 : Agent Intelligent et Computer Vision",
+  "academic_year": "2025-2026",
+  "framework": "Ultralytics YOLOv8",
+  "input_size": [640, 640],
+  "output_format": {
+    "format": "JSON",
+    "fields": ["model", "detections"],
+    "detection_fields": ["label", "confidence", "bbox"],
+    "bbox_format": "[x1, y1, x2, y2]",
+    "tracking_fields": ["track_id", "movement_direction", "approaching"]
+  },
+  "labels": ["person"],
+  "tracker": "ByteTrack",
+  "exported_formats": ["pt", "onnx"],
+  "onnx_opset": 12,
+  "description": "Modèle de détection et tracking de personnes en temps réel. Détecte les personnes dans une scène, suit leurs trajectoires dans le temps (tracking multi-objets avec ByteTrack), estime leur direction de mouvement et signale si une personne s'approche de la caméra."
+}

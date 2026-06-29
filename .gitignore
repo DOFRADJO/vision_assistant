@@ -1,14 +1,4 @@
-__pycache__/
-*.py[cod]
-.pytest_cache/
-.venv/
-exports/logs/*.log
-exports/reports/*.md
-models/*/best.pt
-models/*/best.onnx
-models/*/labels.txt
-models/*/metadata.json
-# Virtual environment
+# Virtual environments
 .venv/
 venv/
 env/
@@ -18,24 +8,27 @@ __pycache__/
 *.py[cod]
 *.pyo
 
-# VS Code
-.vscode/
-
-# JetBrains
-.idea/
-
 # Logs
 *.log
 logs/
 exports/logs/
+exports/reports
 
 # Reports
 exports/reports/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
 
 # Python cache
 .pytest_cache/
 .mypy_cache/
 
-# OS
-.DS_Store
-Thumbs.db
+# Models temporaires
+*.pt.bak
+*.onnx.bak
