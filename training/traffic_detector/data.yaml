@@ -1,0 +1,12 @@
+path: ./data
+
+train: train/images
+val: valid/images
+test: test/images  
+
+names:
+  0: crosswalk
+  1: traffic_light_red
+  2: traffic_light_yellow
+  3: traffic_light_green
+  4: pedestrian_signal_red
