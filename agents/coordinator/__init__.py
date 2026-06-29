@@ -1,0 +1,1 @@
+"""Coordinator agent package for orchestrating the Vision Assistant pipeline."""

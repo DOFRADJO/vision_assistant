@@ -1,0 +1,14 @@
+# YOLO Dataset Configuration
+# Reference: https://docs.ultralytics.com/datasets/detect/
+
+path: /path/to/dataset  # dataset root
+train: images/train     # train images (relative to 'path')
+val: images/val         # val images (relative to 'path')
+test: images/test       # test images (relative to 'path')
+
+# number of classes
+nc: 1
+
+# class names
+names:
+  0: object  # Update with your class name

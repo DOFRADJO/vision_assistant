@@ -1,0 +1,15 @@
+{
+  "model_name": "model_template",
+  "author": "Your Name or Team",
+  "version": "1.0.0",
+  "framework": "YOLOv8",
+  "input_size": [640, 640],
+  "output_format": {
+    "type": "detections",
+    "num_classes": 1,
+    "format": "xyxy",
+    "confidence_threshold": 0.3,
+    "nms_threshold": 0.45
+  },
+  "description": "Template detector model - replace with your model description"
+}
