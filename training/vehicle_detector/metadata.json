@@ -1,0 +1,14 @@
+{
+  "model_name": "vehicle_detector",
+  "author": "KANMO NGAMINI BELLA RINDA",
+  "author's ID" : "22P008",
+  "version": "1.0.0",
+  "framework": "YOLOv8",
+  "input_size": [640, 640],
+  "output_format": {
+    "type": "detections",
+    "num_classes": 5,
+    "format": "xyxy"
+  },
+  "description": "Detects vehicles (car, bus, truck, motorcycle, bicycle) in images and videos"
+}
