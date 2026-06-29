@@ -1,36 +1,66 @@
+# ==========================
 # Virtual environments
+# ==========================
 .venv/
 venv/
 env/
 
+# ==========================
 # Python
+# ==========================
 __pycache__/
 *.py[cod]
 *.pyo
+*.so
 
+# ==========================
 # Logs
+# ==========================
 *.log
 logs/
 exports/logs/
-exports/reports
-
-# Reports
 exports/reports/
 
+# ==========================
 # IDE
+# ==========================
 .vscode/
 .idea/
 
+# ==========================
 # OS
+# ==========================
 .DS_Store
 Thumbs.db
 
+# ==========================
 # Python cache
+# ==========================
 .pytest_cache/
 .mypy_cache/
+.coverage
+htmlcov/
 
-# Models temporaires
+# ==========================
+# Build
+# ==========================
+build/
+dist/
+*.egg-info/
+
+# ==========================
+# Jupyter
+# ==========================
+.ipynb_checkpoints/
+
+# ==========================
+# Environment
+# ==========================
+.env
+.env.*
+
+# ==========================
+# Temporary AI Models
+# ==========================
 *.pt.bak
 *.onnx.bak
-
-*.sh
