@@ -1,0 +1,153 @@
+﻿
+{
+
+  "model": "electronic_detector",
+
+  "version": "1.0.0",
+
+  "author": "BILOA ABADJECK PAOLO,
+
+  "student_id": "22P009",
+
+  "school": "ENSPY - Universite de Yaounde I",
+
+  "program": "AIA-4",
+
+  "project": "Agent Intelligent de Vision Assistee pour Personnes Malvoyantes",
+
+  "description": "Modele de detection d'appareils electroniques (telephones, ordinateurs portables, ecrans, televisions) base sur YOLOv8n.",
+
+  "architecture": "YOLOv8n",
+
+  "framework": "Ultralytics YOLOv8",
+
+  "input": {
+
+    "format": "image",
+
+    "size": [640, 640],
+
+    "channels": 3,
+
+    "normalization": "0-1"
+
+  },
+
+  "output": {
+
+    "format": "json",
+
+    "structure": {
+
+      "model": "string",
+
+      "detections": [
+
+        {
+
+          "label": "string",
+
+          "confidence": "float (0-1)",
+
+          "bbox": "[x1, y1, x2, y2] en pixels"
+
+        }
+
+      ]
+
+    },
+
+    "example": {
+
+      "model": "electronic_detector",
+
+      "detections": [
+
+        {
+
+          "label": "phone",
+
+          "confidence": 0.95,
+
+          "bbox": [120, 85, 230, 470]
+
+        },
+
+        {
+
+          "label": "laptop",
+
+          "confidence": 0.91,
+
+          "bbox": [360, 80, 510, 470]
+
+        }
+
+      ]
+
+    }
+
+  },
+
+  "classes": {
+
+    "0": "phone",
+
+    "1": "laptop",
+
+    "2": "monitor",
+
+    "3": "tv"
+
+  },
+
+  "num_classes": 4,
+
+  "files": {
+
+    "pytorch": "best.pt",
+
+    "onnx": "best.onnx",
+
+    "labels": "labels.txt",
+
+    "metadata": "metadata.json"
+
+  },
+
+  "training": {
+
+    "dataset": "Open Images V7 (Mobile phone, Laptop, Computer monitor, Television)",
+
+    "epochs": 80,
+
+    "image_size": 640,
+
+    "batch_size": 16,
+
+    "optimizer": "auto",
+
+    "date": "2026-06-29"
+
+  },
+
+  "onnx": {
+
+    "opset": 12,
+
+    "simplified": true,
+
+    "compatible_with": [
+
+      "ONNX Runtime",
+
+      "ONNX Runtime Mobile",
+
+      "React Native"
+
+    ]
+
+  }
+
+}
+
