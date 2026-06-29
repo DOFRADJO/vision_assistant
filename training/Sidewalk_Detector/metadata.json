@@ -1,0 +1,11 @@
+{
+  "model": "sidewalk_detector",
+  "version": "1.0.0",
+  "author": "Bright",
+  "framework": "YOLOv8",
+  "architecture": "YOLOv8n",
+  "input": {
+    "size": [640, 640]
+  },
+  "num_classes": 1
+}
