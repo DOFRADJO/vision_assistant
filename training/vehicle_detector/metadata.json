@@ -1,0 +1,30 @@
+{
+  "model": "vehicle_detector",
+  "task": "object_detection",
+  "interface_version": "1.0",
+  "expected_files": [
+    "best.pt",
+    "best.onnx",
+    "labels.txt",
+    "metadata.json"
+  ],
+  "labels": [
+    "car",
+    "bus",
+    "truck",
+    "motorcycle",
+    "bicycle"
+  ],
+  "output_schema": {
+    "model": "vehicle_detector",
+    "detections": [
+      {
+        "label": "car",
+        "confidence": 0.95,
+        "bbox": [400, 200, 700, 520]
+      }
+    ]
+  },
+  "bbox_format": "[x1, y1, x2, y2]",
+  "confidence_range": "[0.0, 1.0]"
+}
