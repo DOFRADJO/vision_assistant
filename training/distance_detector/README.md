@@ -21,47 +21,36 @@ Cette information est critique pour un assistant de malvoyants : une personne qu
 | 0 | `close_person` | Personne proche (grande bounding box) |
 | 1 | `far_person` | Personne éloignée (petite bounding box) |
 
+### Critère de classification
+
+| Classe | Critère (hauteur bbox relative) |
+|--------|--------------------------------|
+| `close_person` | hauteur bbox > 30% de l'image |
+| `far_person` | hauteur bbox ≤ 30% de l'image |
+
 ---
 
 ## 📁 Structure du dossier
 
 ```
 training/distance_detector/
-├── README.md       ← Ce fichier
-├── data.yaml       ← Configuration du dataset
-├── train.py        ← Script d'entraînement
-├── export.py       ← Script d'export ONNX
-└── predict.py      ← Script d'inférence / test
+├── README.md                        ← Ce fichier
+├── data.yaml                        ← Configuration du dataset
+├── distance_detector_colab.ipynb    ← Notebook d'entraînement (Google Colab)
+├── export.py                        ← Script d'export ONNX (local)
+└── predict.py                       ← Script d'inférence / test
 ```
 
 ---
 
-## ⚙️ Installation
+## 🗂️ Dataset
 
-```bash
-pip install ultralytics opencv-python
-```
+Le dataset utilisé provient de **Roboflow Universe** (person detection).  
+Il est téléchargé automatiquement dans le notebook Colab.
 
----
+Les annotations YOLO d'origine (classe `person`) sont **re-labellisées automatiquement** en `close_person` / `far_person` selon la taille de la bounding box.
 
-## 🗂️ Préparer le dataset
-
-Organiser le dataset comme suit :
-
-```
-dataset/
-├── images/
-│   ├── train/     ← images d'entraînement (.jpg / .png)
-│   └── val/       ← images de validation
-└── labels/
-    ├── train/     ← annotations YOLO (.txt)
-    └── val/
-```
-
-### Format des annotations YOLO
-
-Chaque fichier `.txt` correspond à une image :
-
+Format des annotations YOLO :
 ```
 <class_id> <x_center> <y_center> <width> <height>
 ```
@@ -72,41 +61,36 @@ Exemple :
 1 0.80 0.30 0.08 0.15   ← far_person
 ```
 
-### Critère de classification distance
+---
 
-| Classe | Critère (hauteur bbox relative) |
-|--------|--------------------------------|
-| `close_person` | hauteur bbox > 30% de l'image |
-| `far_person` | hauteur bbox ≤ 30% de l'image |
+## 🚀 Entraînement (Google Colab)
+
+L'entraînement se fait entièrement sur **Google Colab** (GPU T4 gratuit).
+
+1. Ouvrir `distance_detector_colab.ipynb` dans Google Colab
+2. Activer le GPU : **Runtime → Changer le type d'exécution → GPU**
+3. Coller son snippet Roboflow dans la cellule 3
+4. Exécuter toutes les cellules dans l'ordre
+5. Le notebook télécharge automatiquement `best.pt` et `best.onnx`
 
 ---
 
-## 🚀 Entraînement
+## 📦 Export ONNX (local)
+
+Si tu veux exporter en local après entraînement :
 
 ```bash
-python train.py
+pip install ultralytics
+python export.py --weights path/to/best.pt
 ```
-
-Les poids entraînés seront disponibles dans :
-```
-runs/detect/distance_detector/weights/best.pt
-```
-
----
-
-## 📦 Export ONNX
-
-```bash
-python export.py
-```
-
-Les livrables sont automatiquement copiés dans `models/distance_detector/`.
 
 ---
 
 ## 🔍 Test / Inférence
 
 ```bash
+pip install ultralytics opencv-python
+
 # Sur une image
 python predict.py --source image.jpg
 
@@ -147,3 +131,5 @@ python predict.py --source 0 --show
 - **PyTorch**
 - **ONNX**
 - **OpenCV**
+- **Roboflow** (dataset)
+- **Google Colab** (entraînement)
