@@ -1,0 +1,37 @@
+# ─────────────────────────────────────────────
+# Weather Detector — Configuration du dataset
+# Dataset : Multi-class Weather Dataset (MWD)
+# Source  : https://data.mendeley.com/datasets/4drtyfjtfy/1
+# ─────────────────────────────────────────────
+
+# Chemin racine du dataset (relatif à ce fichier)
+path: ./dataset
+
+# Sous-dossiers (le split train/val est fait dans train.py)
+train: .
+val: .
+
+# Nombre de classes
+nc: 4
+
+# Noms des classes (ordre alphabétique = ordre ImageFolder)
+names:
+  0: cloudy
+  1: rain
+  2: shine
+  3: sunrise
+
+# Paramètres d'entraînement
+training:
+  epochs: 30
+  batch_size: 32
+  image_size: 224
+  lr: 0.001
+  val_split: 0.2
+  patience: 5        # early stopping
+  seed: 42
+
+# Normalisation ImageNet (utilisée par MobileNetV2)
+normalize:
+  mean: [0.485, 0.456, 0.406]
+  std:  [0.229, 0.224, 0.225]
