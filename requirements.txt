@@ -1,0 +1,9 @@
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0
+opencv-python>=4.10.0
+numpy>=1.26.0
+onnxruntime>=1.18.0
+torch>=2.3.0
+pyttsx3>=2.90.0
+pydantic>=2.8.0
+pytest>=8.0.0

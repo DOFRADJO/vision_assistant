@@ -1,8 +1,9 @@
 """FastAPI endpoints for Vision Assistant."""
 from __future__ import annotations
+
 import base64
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict
 
 try:
     import cv2
@@ -24,8 +25,12 @@ config = get_config()
 configure_logging(config)
 
 
-class PredictRequest(BaseModel):
+class ImagePredictRequest(BaseModel):
     base64_image: str
+
+
+class VideoPredictRequest(BaseModel):
+    video_path: str
 
 
 class SpeakRequest(BaseModel):
@@ -35,13 +40,11 @@ class SpeakRequest(BaseModel):
 @app.on_event("startup")
 def startup() -> None:
     model_loader = ModelLoader(config.paths.models_dir)
-    vision_agent = VisionAgent(model_loader=model_loader)
-    vision_agent.load_models()
     coordinator = Coordinator(config=config, model_loader=model_loader)
     coordinator.initialize()
     app.state.config = config
     app.state.model_loader = model_loader
-    app.state.vision_agent = vision_agent
+    app.state.vision_agent = coordinator.vision_agent
     app.state.coordinator = coordinator
 
 
@@ -106,8 +109,8 @@ def config_endpoint(request: Request) -> Dict[str, Any]:
     }
 
 
-@app.post("/predict")
-def predict(request: Request, payload: PredictRequest) -> Dict[str, Any]:
+@app.post("/predict/image")
+def predict_image(request: Request, payload: ImagePredictRequest) -> Dict[str, Any]:
     if cv2 is None:
         raise HTTPException(status_code=500, detail="OpenCV is required to decode images")
     try:
@@ -118,8 +121,21 @@ def predict(request: Request, payload: PredictRequest) -> Dict[str, Any]:
     except Exception as exc:
         logger.exception("Predict request failed: %s", exc)
         raise HTTPException(status_code=400, detail="Invalid base64 image")
-    predictions = request.app.state.vision_agent.predict(image)
-    return {"predictions": predictions}
+
+    detections = request.app.state.vision_agent.predict(image)
+    return {"status": "ok", "detections": detections}
+
+
+@app.post("/predict/video")
+def predict_video(request: Request, payload: VideoPredictRequest) -> Dict[str, Any]:
+    return {"status": "ok", "video_path": payload.video_path, "message": "Video inference is available through the desktop pipeline."}
+
+
+@app.post("/reload")
+def reload_models(request: Request) -> Dict[str, Any]:
+    request.app.state.model_loader.load_all_models()
+    request.app.state.vision_agent.load_models()
+    return {"status": "ok", "models": sorted(request.app.state.model_loader.detectors.keys())}
 
 
 @app.post("/speak")
