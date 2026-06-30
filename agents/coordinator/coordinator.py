@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Optional
 
 from agents.fusion.scene_builder import SceneBuilder
 from agents.reasoning.scene_interpreter import SceneInterpreter
+from agents.reasoning.decision_engine import DecisionEngine
 from agents.reasoning.scene_memory import SceneMemory
 from agents.speech.speech_agent import SpeechAgent
 from agents.speech.speech_planner import SpeechPlanner
@@ -25,6 +26,7 @@ class Coordinator:
         self.vision_agent = VisionAgent(model_loader=self.model_loader, config=self.config)
         self.scene_builder = SceneBuilder()
         self.scene_interpreter = SceneInterpreter()
+        self.decision_engine = DecisionEngine()
         self.tracking_agent = TrackingAgent(
             tracker_type=self.config.tracking.tracker_type,
             iou_threshold=self.config.tracking.iou_threshold,
@@ -80,7 +82,8 @@ class Coordinator:
         report = self.scene_interpreter.interpret(tracked_scene)
         reasoning_time = time.perf_counter() - frame_start - vision_time - fusion_time - tracking_time
 
-        planned = self.speech_planner.plan(report)
+        decision = self.decision_engine.decide(report)
+        planned = self.speech_planner.plan(decision)
         filtered: List[Dict[str, Any]] = []
         for message in planned:
             if self.scene_memory.should_speak(str(message.get("message", ""))):
@@ -112,6 +115,7 @@ class Coordinator:
             "detections": vision_output.get("detections", []),
             "scene": summary,
             "scene_report": report.to_dict(),
+            "decision": decision.__dict__ if decision is not None else {},
             "events": report.events,
             "recommendations": report.recommendations,
             "planned": planned,

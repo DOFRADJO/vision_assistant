@@ -6,30 +6,25 @@ from typing import Any, Dict, List
 
 class SpeechPlanner:
     """Prepare natural language phrases from a scene report."""
+    def plan(self, decision: Any) -> List[Dict[str, object]]:
+        """Create speech plan from a single Decision.
 
-    def plan(self, report: Any) -> List[Dict[str, object]]:
+        The planner accepts a Decision-like object and returns a list
+        containing at most one speech item. If the decision action is
+        not "SPEAK", an empty list is returned.
+        """
         planned: List[Dict[str, object]] = []
-        if hasattr(report, "summary"):
-            summary = str(getattr(report, "summary", "")).strip()
-            priority = int(getattr(report, "priority", 1))
-            planned.append(
-                {
-                    "message": summary or "Aucune information de scène disponible.",
-                    "priority": priority,
-                    "label": "scene_summary",
-                }
-            )
+        if decision is None:
             return planned
 
-        for event in report:
-            message = self._format_message(event)
-            planned.append(
-                {
-                    "message": message,
-                    "priority": int(event.get("priority", 1)),
-                    "label": event.get("type", str(event.get("message", ""))),
-                }
-            )
+        # Decision expected to have attributes: action, message, priority
+        action = getattr(decision, "action", None)
+        if action != "SPEAK":
+            return planned
+
+        message = str(getattr(decision, "message", "")).strip() or "Aucune information de scène disponible."
+        priority = int(getattr(decision, "priority", 1))
+        planned.append({"message": message, "priority": priority, "label": getattr(decision, "reason", "scene")})
         return planned
 
     def _format_message(self, event: Dict[str, Any]) -> str:

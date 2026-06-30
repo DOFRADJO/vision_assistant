@@ -1,0 +1,96 @@
+{
+  "model": "obstacle_detector",
+  "version": "1.0.0",
+  "author": "DIFFO KENNE GARNEL",
+  "school": "ENSPY — Université de Yaoundé I",
+  "program": "AIA-4",
+  "project": "Agent Intelligent de Vision Assistée pour Personnes Malvoyantes",
+  "description": "Modèle de détection d'obstacles intérieurs et extérieurs (escaliers, portes, barrières, sol mouillé, poubelles, poteaux, plots/cônes, obstacles divers) basé sur YOLOv8, entraîné sur un dataset fusionné multi-sources.",
+  "architecture": "YOLOv8",
+  "framework": "Ultralytics YOLOv8",
+  "input": {
+    "format": "image",
+    "size": [
+      640,
+      640
+    ],
+    "channels": 3,
+    "normalization": "0-1"
+  },
+  "output": {
+    "format": "json",
+    "structure": {
+      "model": "string",
+      "detections": [
+        {
+          "label": "string",
+          "confidence": "float (0-1)",
+          "bbox": "[x1, y1, x2, y2] en pixels"
+        }
+      ]
+    },
+    "example": {
+      "model": "obstacle_detector",
+      "detections": [
+        {
+          "label": "stairs",
+          "confidence": 0.91,
+          "bbox": [
+            80,
+            120,
+            420,
+            480
+          ]
+        },
+        {
+          "label": "pole",
+          "confidence": 0.87,
+          "bbox": [
+            500,
+            60,
+            540,
+            400
+          ]
+        }
+      ]
+    }
+  },
+  "classes": {
+    "0": "stairs",
+    "1": "door",
+    "2": "trash_bin",
+    "3": "cone",
+    "4": "obstacle"
+  },
+  "num_classes": 5,
+  "files": {
+    "pytorch": "best.pt",
+    "onnx": "best.onnx",
+    "labels": "labels.txt",
+    "metadata": "metadata.json"
+  },
+  "training": {
+    "dataset": "Fusion multi-sources (scrape Roboflow Universe, DoorDetect-Dataset, TraCon, Hugging Face) — voir training/obstacle_detector/README.md section 2",
+    "epochs": 150,
+    "image_size": 640,
+    "batch_size": 32,
+    "optimizer": "auto (SGD/AdamW, sélection Ultralytics)",
+    "metrics": {
+      "map50-95": 0.5238659361898684,
+      "map50": 0.7056286176125773,
+      "precision": 0.7364190967766893,
+      "recall": 0.681773521482312
+    },
+    "date": "2026-06-29"
+  },
+  "onnx": {
+    "opset": 12,
+    "simplified": true,
+    "compatible_with": [
+      "ONNX Runtime",
+      "ONNX Runtime Mobile",
+      "React Native"
+    ]
+  },
+  "generated_at": "2026-06-29T22:12:27.600602+00:00"
+}

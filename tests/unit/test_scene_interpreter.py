@@ -19,6 +19,7 @@ class TestSceneInterpreter(unittest.TestCase):
         self.assertEqual(report.summary, "Une personne est devant vous.")
         self.assertEqual(report.danger_level, "LOW")
         self.assertIn("persons_present", report.events)
+        self.assertIn("person_detected", report.events)
         self.assertIn("Continuez prudemment.", report.recommendations)
 
     def test_vehicle_crosswalk_summary(self) -> None:
@@ -31,8 +32,12 @@ class TestSceneInterpreter(unittest.TestCase):
 
         self.assertEqual(report.summary, "Un véhicule approche d'un passage piéton.")
         self.assertEqual(report.danger_level, "HIGH")
-        self.assertEqual(report.priority, 80)
+        from agents.reasoning.decision_engine import DecisionEngine
+        expected_prio = DecisionEngine.DEFAULT_PRIORITY.get("vehicle_at_crosswalk", 0)
+        self.assertEqual(report.priority, expected_prio)
         self.assertIn("vehicle_at_crosswalk", report.events)
+        self.assertIn("car_detected", report.events)
+        self.assertIn("crosswalk_detected", report.events)
 
     def test_wet_floor_summary(self) -> None:
         scene = self._build_scene([
@@ -44,6 +49,22 @@ class TestSceneInterpreter(unittest.TestCase):
         self.assertEqual(report.summary, "Attention, le sol semble mouillé.")
         self.assertEqual(report.danger_level, "HIGH")
         self.assertIn("wet_floor", report.events)
+        self.assertIn("wet_floor_detected", report.events)
+
+    def test_multiple_objects_generate_events(self) -> None:
+        scene = self._build_scene([
+            {"label": "person", "category": "persons", "confidence": 0.95, "bbox": [10, 10, 50, 120], "backend": "onnx", "model": "people_detector", "source": "people_detector"},
+            {"label": "door", "category": "doors", "confidence": 0.97, "bbox": [60, 10, 120, 180], "backend": "onnx", "model": "door_detector", "source": "door_detector"},
+            {"label": "dog", "category": "animals", "confidence": 0.92, "bbox": [140, 10, 200, 140], "backend": "onnx", "model": "animal_detector", "source": "animal_detector"},
+        ])
+
+        report = self.interpreter.interpret(scene)
+
+        self.assertIn("person_detected", report.events)
+        self.assertIn("door_detected", report.events)
+        self.assertIn("dog_detected", report.events)
+        self.assertIn("person_at_door", report.events)
+        self.assertIn("dog_with_person", report.events)
 
     def _build_scene(self, predictions: list[dict]) -> "agents.fusion.scene.Scene":
         from agents.fusion.scene import Scene
