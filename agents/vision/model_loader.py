@@ -194,6 +194,63 @@ class ModelLoader:
             logger.warning("Failed to load ONNX model %s: %s", path, exc)
             return None
 
+    def _extract_metadata_input_size(self, metadata: Dict[str, Any]) -> Optional[Tuple[int, int]]:
+        raw_size = metadata.get("input_size")
+        if not isinstance(raw_size, (list, tuple)) or len(raw_size) != 2:
+            return None
+        try:
+            width = int(raw_size[0])
+            height = int(raw_size[1])
+        except (TypeError, ValueError):
+            return None
+        if width <= 0 or height <= 0:
+            return None
+        return width, height
+
+    def _input_size_from_onnx_shape(self, input_shape: Any) -> Optional[Tuple[int, int]]:
+        if not isinstance(input_shape, (list, tuple)) or len(input_shape) < 4:
+            return None
+        try:
+            height = int(input_shape[2])
+            width = int(input_shape[3])
+        except (TypeError, ValueError):
+            return None
+        if height <= 0 or width <= 0:
+            return None
+        return width, height
+
+    def _resolve_onnx_input_size(self, model_info: ModelInfo) -> Tuple[int, int]:
+        input_shape = None
+        try:
+            input_shape = model_info.onnx_session.get_inputs()[0].shape
+        except Exception as exc:
+            logger.warning("Failed to read ONNX input shape for %s: %s", model_info.name, exc)
+            input_shape = None
+
+        target_size = self._input_size_from_onnx_shape(input_shape)
+        if target_size is not None:
+            logger.info("Using ONNX input shape for %s: %s", model_info.name, target_size)
+            return target_size
+
+        metadata_size = self._extract_metadata_input_size(model_info.metadata)
+        if metadata_size is not None:
+            logger.info(
+                "ONNX input shape for %s has dynamic dimensions %s; falling back to metadata.input_size=%s",
+                model_info.name,
+                input_shape,
+                metadata_size,
+            )
+            return metadata_size
+
+        config_size = (self.config.camera.resize_width, self.config.camera.resize_height)
+        logger.info(
+            "ONNX input shape for %s has dynamic dimensions %s and no valid metadata.input_size; falling back to config.camera resize=%s",
+            model_info.name,
+            input_shape,
+            config_size,
+        )
+        return config_size
+
     def _load_torch_model(self, path: Path) -> Optional[Any]:
         try:
             import torch
@@ -308,9 +365,7 @@ class ModelLoader:
     def _predict_onnx(self, model_info: ModelInfo, image: Any) -> List[Dict[str, Any]]:
         if model_info.onnx_session is None:
             return []
-        input_shape = model_info.onnx_session.get_inputs()[0].shape
-        target_height = int(input_shape[2] or self.config.camera.resize_height)
-        target_width = int(input_shape[3] or self.config.camera.resize_width)
+        target_width, target_height = self._resolve_onnx_input_size(model_info)
         data = self._prepare_image(image, (target_width, target_height))
         input_name = model_info.onnx_session.get_inputs()[0].name
         try:

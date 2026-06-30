@@ -1,0 +1,18 @@
+{
+  "model_name": "wall_switch_detection",
+  "author": "KENNE KEYANYEM FRANK C.",
+  "version": "1.3.4",
+  "framework": "YOLOv8",
+  "input_size": [
+    640,
+    640
+  ],
+  "output_format": {
+    "type": "detections",
+    "num_classes": 3,
+    "format": "xyxy",
+    "confidence_threshold": 0.25,
+    "nms_threshold": 0.45
+  },
+  "description": "Wall switch, power socket, and power strip detection model. Trained with YOLOv8."
+}
