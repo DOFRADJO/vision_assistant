@@ -1,0 +1,49 @@
+{
+  "model": "food_detector",
+  "version": "1.0.0",
+  "author": "TABOUTSA Fredy",
+  "framework": "YOLOv8",
+  "architecture": "YOLOv8n",
+  "generated_at": "2026-06-30T08:37:41.802965+00:00",
+  "task": "object_detection",
+  "input": {
+    "size": [640, 640],
+    "format": "RGB"
+  },
+  "classes": [
+    "apple",
+    "avocado",
+    "banana",
+    "grapes",
+    "lemon",
+    "mango",
+    "orange",
+    "pineapple",
+    "strawberry",
+    "watermelon"
+  ],
+  "num_classes": 10,
+  "thresholds": {
+    "confidence": 0.4,
+    "iou_nms": 0.45
+  },
+  "output_contract": {
+    "description": "Respecte le contrat d'interface commun du projet : {'model': str, 'detections': [{'label': str, 'confidence': float, 'bbox': [x1, y1, x2, y2]}]}",
+    "example": {
+      "model": "food_detector",
+      "detections": [
+        {
+          "label": "apple",
+          "confidence": 0.87,
+          "bbox": [
+            50,
+            80,
+            320,
+            310
+          ]
+        }
+      ]
+    }
+  },
+  "author_module_path": "training/food_detector/"
+}
