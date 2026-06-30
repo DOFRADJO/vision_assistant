@@ -1,0 +1,10 @@
+traffic_light
+stop_sign
+speed_limit
+pedestrian_crossing
+no_entry
+give_way
+roundabout
+one_way
+warning_sign
+parking

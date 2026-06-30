@@ -1,0 +1,36 @@
+{
+    "model": "traffic_detector",
+    "version": "1.0.0",
+    "created_at": "2026-06-29T07:19:13.046811",
+    "architecture": "YOLOv8",
+    "task": "object_detection",
+    "input_size": [
+        640,
+        640
+    ],
+    "nc": 10,
+    "classes": [
+        "traffic_light",
+        "stop_sign",
+        "speed_limit",
+        "pedestrian_crossing",
+        "no_entry",
+        "give_way",
+        "roundabout",
+        "one_way",
+        "warning_sign",
+        "parking"
+    ],
+    "description": "Détecte les panneaux et la signalisation routière (feux, stop, limitation de vitesse, passage piéton, etc.)",
+    "author": "Armel — AIA4 ENSPY",
+    "output_format": {
+        "model": "traffic_detector",
+        "detections": [
+            {
+                "label": "<class_name>",
+                "confidence": "<float 0-1>",
+                "bbox": "[x1, y1, x2, y2]"
+            }
+        ]
+    }
+}
