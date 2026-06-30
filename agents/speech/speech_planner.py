@@ -5,11 +5,23 @@ from typing import Any, Dict, List
 
 
 class SpeechPlanner:
-    """Prepare natural language phrases from reasoning events."""
+    """Prepare natural language phrases from a scene report."""
 
-    def plan(self, events: List[Dict[str, Any]]) -> List[Dict[str, object]]:
+    def plan(self, report: Any) -> List[Dict[str, object]]:
         planned: List[Dict[str, object]] = []
-        for event in events:
+        if hasattr(report, "summary"):
+            summary = str(getattr(report, "summary", "")).strip()
+            priority = int(getattr(report, "priority", 1))
+            planned.append(
+                {
+                    "message": summary or "Aucune information de scène disponible.",
+                    "priority": priority,
+                    "label": "scene_summary",
+                }
+            )
+            return planned
+
+        for event in report:
             message = self._format_message(event)
             planned.append(
                 {

@@ -5,7 +5,8 @@ import logging
 import time
 from typing import Any, Dict, List, Optional
 
-from agents.fusion.fusion_agent import FusionAgent
+from agents.fusion.scene_builder import SceneBuilder
+from agents.reasoning.scene_interpreter import SceneInterpreter
 from agents.reasoning.scene_memory import SceneMemory
 from agents.speech.speech_agent import SpeechAgent
 from agents.speech.speech_planner import SpeechPlanner
@@ -22,7 +23,8 @@ class Coordinator:
         self.config = config or VisionAssistantConfig()
         self.model_loader = model_loader or ModelLoader(self.config.paths.models_dir)
         self.vision_agent = VisionAgent(model_loader=self.model_loader, config=self.config)
-        self.fusion_agent = FusionAgent()
+        self.scene_builder = SceneBuilder()
+        self.scene_interpreter = SceneInterpreter()
         self.tracking_agent = TrackingAgent(
             tracker_type=self.config.tracking.tracker_type,
             iou_threshold=self.config.tracking.iou_threshold,
@@ -68,20 +70,17 @@ class Coordinator:
         vision_output = self.vision_agent.predict(frame, frame_id=self.frame_count)
         vision_time = time.perf_counter() - frame_start
 
-        scene = self.fusion_agent.fuse(vision_output.get("raw_predictions", {}))
+        scene = self.scene_builder.build_scene(vision_output.get("raw_predictions", {}))
         fusion_time = time.perf_counter() - frame_start - vision_time
 
         tracked_scene = self.tracking_agent.track(scene)
         tracking_time = time.perf_counter() - frame_start - vision_time - fusion_time
 
         self.scene_memory.update(tracked_scene)
-        if self.scene_memory.has_changed():
-            events = self.scene_memory.get_new_events()
-        else:
-            events = []
+        report = self.scene_interpreter.interpret(tracked_scene)
         reasoning_time = time.perf_counter() - frame_start - vision_time - fusion_time - tracking_time
 
-        planned = self.speech_planner.plan(events)
+        planned = self.speech_planner.plan(report)
         filtered: List[Dict[str, Any]] = []
         for message in planned:
             if self.scene_memory.should_speak(str(message.get("message", ""))):
@@ -102,7 +101,7 @@ class Coordinator:
             fps,
             {k: v for k, v in summary.items() if v > 0},
             self.scene_memory.has_changed(),
-            [event.get("type") for event in events],
+            report.events,
             [message.get("message") for message in filtered],
         )
 
@@ -112,7 +111,9 @@ class Coordinator:
             "timestamp": vision_output.get("timestamp"),
             "detections": vision_output.get("detections", []),
             "scene": summary,
-            "events": events,
+            "scene_report": report.to_dict(),
+            "events": report.events,
+            "recommendations": report.recommendations,
             "planned": planned,
             "spoken": filtered,
             "scene_changed": self.scene_memory.has_changed(),
