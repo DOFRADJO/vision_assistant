@@ -3,9 +3,13 @@ from __future__ import annotations
 
 import argparse
 import shutil
+import sys
 from datetime import datetime
 from pathlib import Path
 from typing import List
+
+ROOT_DIR = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT_DIR))
 
 from config import get_config
 from core.utils import ensure_directory, serialize_json

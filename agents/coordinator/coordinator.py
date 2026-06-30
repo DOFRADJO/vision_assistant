@@ -5,9 +5,11 @@ import logging
 import time
 from typing import Any, Dict, List, Optional
 
-from agents.memory.memory_agent import MemoryAgent
-from agents.reasoning.reasoning_agent import ReasoningAgent
+from agents.fusion.fusion_agent import FusionAgent
+from agents.reasoning.scene_memory import SceneMemory
 from agents.speech.speech_agent import SpeechAgent
+from agents.speech.speech_planner import SpeechPlanner
+from agents.tracking.tracking_agent import TrackingAgent
 from agents.vision.vision_agent import VisionAgent
 from agents.vision.model_loader import ModelLoader
 from config import VisionAssistantConfig
@@ -20,8 +22,14 @@ class Coordinator:
         self.config = config or VisionAssistantConfig()
         self.model_loader = model_loader or ModelLoader(self.config.paths.models_dir)
         self.vision_agent = VisionAgent(model_loader=self.model_loader, config=self.config)
-        self.reasoning_agent = ReasoningAgent(config=self.config)
-        self.memory_agent = MemoryAgent(config=self.config)
+        self.fusion_agent = FusionAgent()
+        self.tracking_agent = TrackingAgent(
+            tracker_type=self.config.tracking.tracker_type,
+            iou_threshold=self.config.tracking.iou_threshold,
+            max_age=self.config.tracking.max_age,
+        )
+        self.scene_memory = SceneMemory()
+        self.speech_planner = SpeechPlanner()
         self.speech_agent = SpeechAgent(config=self.config)
         self.last_result: Dict[str, Any] = {}
         self.frame_count = 0
@@ -29,53 +37,85 @@ class Coordinator:
     def initialize(self) -> None:
         if not self.model_loader.detectors:
             self.vision_agent.load_models()
-            logger.info("Loaded %d model(s) for inference", len(self.model_loader.detectors))
+        loaded_models = sorted(self.model_loader.detectors.keys())
+        self._log_startup(loaded_models)
+        if loaded_models:
+            logger.info("Loaded %d models for inference", len(loaded_models))
         else:
-            logger.debug("Coordinator initialization skipped model reload because models are already loaded.")
+            logger.warning("No models were loaded. Check models directory: %s", self.model_loader.models_dir)
+
+    def _log_startup(self, loaded_models: List[str]) -> None:
+        camera_name = "Laptop Camera" if self.config.camera.source_type == "webcam" else self.config.camera.source_type
+        logger.info("%s", "=" * 40)
+        logger.info("Vision Assistant")
+        logger.info("%s", "=" * 40)
+        logger.info("Camera : %s", camera_name)
+        logger.info("Resolution : %sx%s", self.config.camera.resize_width, self.config.camera.resize_height)
+        logger.info("FPS : %s", self.config.camera.fps)
+        logger.info("%s", "=" * 40)
+        logger.info("Loading Models")
+        logger.info("%s", "=" * 40)
+        for model_name in loaded_models:
+            logger.info("✓ %s", model_name)
+        logger.info("Total Models : %d", len(loaded_models))
+        logger.info("%s", "=" * 40)
+        logger.info("Ready")
 
     def process_frame(self, frame: Any) -> Dict[str, Any]:
-        start_time = time.perf_counter()
+        frame_start = time.perf_counter()
         self.frame_count += 1
 
-        detections = self.vision_agent.predict(frame)
-        vision_time = time.perf_counter() - start_time
+        vision_output = self.vision_agent.predict(frame, frame_id=self.frame_count)
+        vision_time = time.perf_counter() - frame_start
 
-        messages = self.reasoning_agent.analyze_scene(detections)
-        reasoning_time = time.perf_counter() - start_time - vision_time
+        scene = self.fusion_agent.fuse(vision_output.get("raw_predictions", {}))
+        fusion_time = time.perf_counter() - frame_start - vision_time
 
+        tracked_scene = self.tracking_agent.track(scene)
+        tracking_time = time.perf_counter() - frame_start - vision_time - fusion_time
+
+        self.scene_memory.update(tracked_scene)
+        if self.scene_memory.has_changed():
+            events = self.scene_memory.get_new_events()
+        else:
+            events = []
+        reasoning_time = time.perf_counter() - frame_start - vision_time - fusion_time - tracking_time
+
+        planned = self.speech_planner.plan(events)
         filtered: List[Dict[str, Any]] = []
-        for message in messages:
-            if self.memory_agent.should_emit(message):
+        for message in planned:
+            if self.scene_memory.should_speak(str(message.get("message", ""))):
                 filtered.append(message)
-
-        memory_time = time.perf_counter() - start_time - vision_time - reasoning_time
 
         for message in filtered:
             self.speech_agent.speak(message["message"], priority=message.get("priority", 1))
 
-        speech_time = time.perf_counter() - start_time - vision_time - reasoning_time - memory_time
-        elapsed = time.perf_counter() - start_time
+        speech_time = time.perf_counter() - frame_start - vision_time - fusion_time - tracking_time - reasoning_time
+        elapsed = time.perf_counter() - frame_start
         fps = 1.0 / max(elapsed, 1e-6)
 
+        summary = tracked_scene.summary()
         logger.info(
-            "Frame %d | detections=%d | models=%d | messages=%d | ignored=%d | fps=%.2f | vision=%.3fs | reasoning=%.3fs | memory=%.3fs | speech=%.3fs",
+            "Frame : %d | Inference : %.0f ms | FPS : %.2f | Scene : %s | Changed : %s | Events : %s | Spoken : %s",
             self.frame_count,
-            len(detections),
-            len(self.model_loader.detectors),
-            len(filtered),
-            len(messages) - len(filtered),
+            vision_time * 1000.0,
             fps,
-            vision_time,
-            reasoning_time,
-            memory_time,
-            speech_time,
+            {k: v for k, v in summary.items() if v > 0},
+            self.scene_memory.has_changed(),
+            [event.get("type") for event in events],
+            [message.get("message") for message in filtered],
         )
 
         result = {
-            "detections": detections,
-            "messages": filtered,
             "status": "ok",
             "frame": self.frame_count,
+            "timestamp": vision_output.get("timestamp"),
+            "detections": vision_output.get("detections", []),
+            "scene": summary,
+            "events": events,
+            "planned": planned,
+            "spoken": filtered,
+            "scene_changed": self.scene_memory.has_changed(),
             "fps": fps,
         }
         self.last_result = result

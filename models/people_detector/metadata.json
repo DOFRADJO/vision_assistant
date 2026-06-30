@@ -1,0 +1,86 @@
+{
+  "model": "people_detector",
+  "version": "1.0.0",
+  "author": "Kenné Takoudjou Franck Manuel",
+  "student_id": "24P817",
+  "school": "ENSPY — Université de Yaoundé I",
+  "program": "AIA-4",
+  "project": "Agent Intelligent de Vision Assistée pour Personnes Malvoyantes",
+  "description": "Modèle de détection de personnes basé sur YOLOv8n, entraîné sur COCO128 (classe person uniquement).",
+  "architecture": "YOLOv8n",
+  "framework": "Ultralytics YOLOv8",
+  "input": {
+    "format": "image",
+    "size": [
+      640,
+      640
+    ],
+    "channels": 3,
+    "normalization": "0-1"
+  },
+  "output": {
+    "format": "json",
+    "structure": {
+      "model": "string",
+      "detections": [
+        {
+          "label": "string",
+          "confidence": "float (0-1)",
+          "bbox": "[x1, y1, x2, y2] en pixels"
+        }
+      ]
+    },
+    "example": {
+      "model": "people_detector",
+      "detections": [
+        {
+          "label": "person",
+          "confidence": 0.96,
+          "bbox": [
+            120,
+            85,
+            230,
+            470
+          ]
+        },
+        {
+          "label": "person",
+          "confidence": 0.93,
+          "bbox": [
+            360,
+            80,
+            510,
+            470
+          ]
+        }
+      ]
+    }
+  },
+  "classes": {
+    "0": "person"
+  },
+  "num_classes": 1,
+  "files": {
+    "pytorch": "best.pt",
+    "onnx": "best.onnx",
+    "labels": "labels.txt",
+    "metadata": "metadata.json"
+  },
+  "training": {
+    "dataset": "COCO128 (person class only)",
+    "epochs": 50,
+    "image_size": 640,
+    "batch_size": 16,
+    "optimizer": "SGD",
+    "date": "2026-06-29"
+  },
+  "onnx": {
+    "opset": 12,
+    "simplified": true,
+    "compatible_with": [
+      "ONNX Runtime",
+      "ONNX Runtime Mobile",
+      "React Native"
+    ]
+  }
+}

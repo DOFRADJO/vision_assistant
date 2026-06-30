@@ -1,0 +1,254 @@
+"""Scene memory for tracking recent scene state and emitting only important changes."""
+from __future__ import annotations
+
+import logging
+import time
+from dataclasses import dataclass, field
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Union
+
+from agents.fusion.scene import Scene, SceneObject
+
+logger = logging.getLogger(__name__)
+
+
+@dataclass
+class SceneMemoryObject:
+    id: str
+    label: str
+    confidence: float
+    bbox: List[float]
+    position: str
+    first_seen: float
+    last_seen: float
+    frames_seen: int = 0
+
+
+class SceneMemory:
+    """Track recent scene state and report only meaningful scene changes."""
+
+    def __init__(self, cooldown_seconds: float = 10.0) -> None:
+        self.cooldown_seconds = cooldown_seconds
+        self.objects: Dict[str, SceneMemoryObject] = {}
+        self.current_keys: set[str] = set()
+        self.previous_keys: set[str] = set()
+        self._last_events: List[Dict[str, Any]] = []
+        self._changed = False
+        self.last_spoken_messages: Dict[str, float] = {}
+
+    def update(self, scene: Union[Scene, Sequence[SceneObject], Dict[str, Sequence[SceneObject]]]) -> None:
+        """Update memory from a fused scene representation."""
+        objects = list(self._extract_scene_objects(scene))
+        now = time.time()
+        self.previous_keys = self.current_keys
+        self.current_keys = set()
+        self._last_events = []
+
+        bounds = self._scene_bounds(objects)
+        current_counts: Dict[str, int] = {}
+        previous_counts: Dict[str, int] = {}
+
+        for obj in objects:
+            key = self._compute_key(obj, bounds)
+            self.current_keys.add(key)
+            label = str(obj.label or "object").strip().lower()
+            current_counts[label] = current_counts.get(label, 0) + 1
+
+            if key in self.objects:
+                memory_object = self.objects[key]
+                memory_object.confidence = float(obj.confidence)
+                memory_object.bbox = list(obj.bbox)
+                memory_object.position = self._approximate_position(obj.bbox, bounds)
+                memory_object.last_seen = now
+                memory_object.frames_seen += 1
+            else:
+                self.objects[key] = SceneMemoryObject(
+                    id=key,
+                    label=label,
+                    confidence=float(obj.confidence),
+                    bbox=list(obj.bbox),
+                    position=self._approximate_position(obj.bbox, bounds),
+                    first_seen=now,
+                    last_seen=now,
+                    frames_seen=1,
+                )
+
+        for key in self.previous_keys:
+            previous = self.objects.get(key)
+            if previous is None:
+                continue
+            label = previous.label
+            previous_counts[label] = previous_counts.get(label, 0) + 1
+
+        appeared = self.current_keys - self.previous_keys
+        disappeared = self.previous_keys - self.current_keys
+
+        for key in appeared:
+            obj = self.objects.get(key)
+            if obj is not None:
+                self._last_events.append(
+                    {
+                        "type": obj.label,
+                        "message": self._appearance_message(obj),
+                        "priority": 1,
+                        "label": obj.label,
+                    }
+                )
+
+        for key in disappeared:
+            previous = self.objects.get(key)
+            if previous is not None:
+                self._last_events.append(
+                    {
+                        "type": previous.label,
+                        "message": self._disappearance_message(previous),
+                        "priority": 1,
+                        "label": previous.label,
+                    }
+                )
+
+        for label in sorted(set(previous_counts) | set(current_counts)):
+            previous_count = previous_counts.get(label, 0)
+            current_count = current_counts.get(label, 0)
+            if previous_count != current_count:
+                if current_count == 0:
+                    self._last_events.append(
+                        {
+                            "type": label,
+                            "message": f"Il n'y a plus de {self._plural_label(label)}.",
+                            "priority": 1,
+                            "label": label,
+                        }
+                    )
+                else:
+                    self._last_events.append(
+                        {
+                            "type": label,
+                            "message": f"Le nombre de {self._plural_label(label)} est passé de {previous_count} à {current_count}.",
+                            "priority": 1,
+                            "label": label,
+                        }
+                    )
+
+        self._changed = bool(self._last_events)
+
+    def get_new_events(self) -> List[Dict[str, Any]]:
+        """Return only the events generated by the most recent scene update."""
+        return list(self._last_events)
+
+    def has_changed(self) -> bool:
+        """Return True only when the scene contains a meaningful change."""
+        return self._changed
+
+    def should_speak(self, text: str) -> bool:
+        """Return True only if text has not been spoken within the cooldown window."""
+        if not text:
+            return False
+
+        now = time.time()
+        last_spoken = self.last_spoken_messages.get(text)
+        if last_spoken is None or now - last_spoken >= self.cooldown_seconds:
+            self.last_spoken_messages[text] = now
+            return True
+
+        logger.debug("Skipping repeated speech within cooldown: %s", text)
+        return False
+
+    def _extract_scene_objects(self, scene: Union[Scene, Sequence[SceneObject], Dict[str, Sequence[SceneObject]]]) -> Iterable[SceneObject]:
+        if isinstance(scene, Scene):
+            return scene.all_objects
+        if isinstance(scene, dict):
+            items: List[SceneObject] = []
+            for value in scene.values():
+                if isinstance(value, Sequence):
+                    items.extend([obj for obj in value if isinstance(obj, SceneObject)])
+            return items
+        if isinstance(scene, Sequence):
+            return [obj for obj in scene if isinstance(obj, SceneObject)]
+        return []
+
+    def _scene_bounds(self, objects: List[SceneObject]) -> Tuple[float, float, float, float]:
+        if not objects:
+            return 0.0, 0.0, 1.0, 1.0
+        x1_values = [float(obj.bbox[0]) for obj in objects]
+        y1_values = [float(obj.bbox[1]) for obj in objects]
+        x2_values = [float(obj.bbox[2]) for obj in objects]
+        y2_values = [float(obj.bbox[3]) for obj in objects]
+        return min(x1_values), min(y1_values), max(x2_values), max(y2_values)
+
+    def _compute_key(self, obj: SceneObject, bounds: Tuple[float, float, float, float]) -> str:
+        if obj.tracking_id is not None:
+            return f"track:{obj.tracking_id}"
+
+        x1, y1, x2, y2 = (float(value) for value in obj.bbox)
+        cx = (x1 + x2) / 2.0
+        cy = (y1 + y2) / 2.0
+        width = max(bounds[2] - bounds[0], 1.0)
+        height = max(bounds[3] - bounds[1], 1.0)
+        grid_x = int((cx - bounds[0]) / width * 10)
+        grid_y = int((cy - bounds[1]) / height * 10)
+        bucket = self._approximate_position(obj.bbox, bounds)
+        return f"{obj.label.lower()}:{bucket}:{grid_x}:{grid_y}"
+
+    def _approximate_position(self, bbox: List[float], bounds: Tuple[float, float, float, float]) -> str:
+        x1, y1, x2, y2 = (float(value) for value in bbox)
+        cx = (x1 + x2) / 2.0
+        cy = (y1 + y2) / 2.0
+        width = max(bounds[2] - bounds[0], 1.0)
+        height = max(bounds[3] - bounds[1], 1.0)
+        normalized_x = min(max((cx - bounds[0]) / width, 0.0), 1.0)
+        normalized_y = min(max((cy - bounds[1]) / height, 0.0), 1.0)
+
+        if normalized_y < 0.33:
+            vertical = "en haut"
+        elif normalized_y > 0.66:
+            vertical = "en bas"
+        else:
+            vertical = "au centre"
+
+        if normalized_x < 0.33:
+            horizontal = "à gauche"
+        elif normalized_x > 0.66:
+            horizontal = "à droite"
+        else:
+            horizontal = "au centre"
+
+        return f"{vertical} {horizontal}"
+
+    def _appearance_message(self, obj: SceneMemoryObject) -> str:
+        singular = self._singular_label(obj.label)
+        article = "Nouvelle" if singular.endswith("e") else "Nouveau"
+        return f"{article} {singular} détecté {obj.position}."
+
+    def _disappearance_message(self, obj: SceneMemoryObject) -> str:
+        singular = self._singular_label(obj.label)
+        return f"{singular.capitalize()} disparu."
+
+    def _singular_label(self, label: str) -> str:
+        normalized = label.strip().lower()
+        if normalized in {"persons", "people"}:
+            return "personne"
+        if normalized == "vehicles":
+            return "véhicule"
+        if normalized == "animals":
+            return "animal"
+        if normalized == "obstacles":
+            return "obstacle"
+        if normalized in {"traffic_signs", "traffic sign", "traffic signs"}:
+            return "panneau"
+        return normalized
+
+    def _plural_label(self, label: str) -> str:
+        normalized = label.strip().lower()
+        if normalized in {"personne", "person", "people", "persons"}:
+            return "personnes"
+        if normalized in {"véhicule", "vehicle", "vehicles"}:
+            return "véhicules"
+        if normalized in {"animal", "animals"}:
+            return "animaux"
+        if normalized in {"obstacle", "obstacles"}:
+            return "obstacles"
+        if normalized in {"panneau", "traffic_sign", "traffic_signs", "traffic sign"}:
+            return "panneaux"
+        if normalized.endswith("s"):
+            return normalized
+        return f"{normalized}s"

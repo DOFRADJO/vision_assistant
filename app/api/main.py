@@ -122,8 +122,8 @@ def predict_image(request: Request, payload: ImagePredictRequest) -> Dict[str, A
         logger.exception("Predict request failed: %s", exc)
         raise HTTPException(status_code=400, detail="Invalid base64 image")
 
-    detections = request.app.state.vision_agent.predict(image)
-    return {"status": "ok", "detections": detections}
+    result = request.app.state.vision_agent.predict(image)
+    return {"status": "ok", "frame_id": result.get("frame_id"), "detections": result.get("detections", []), "scene": result.get("raw_predictions", {})}
 
 
 @app.post("/predict/video")

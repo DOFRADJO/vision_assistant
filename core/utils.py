@@ -47,7 +47,10 @@ def draw_predictions(image: np.ndarray, detections: List[Dict[str, Any]]) -> np.
         bbox = detection.get("bbox")
         if not bbox:
             continue
-        x1, y1, x2, y2 = int(bbox[0]), int(bbox[1]), int(bbox[2]), int(bbox[3])
+        if isinstance(bbox, dict):
+            x1, y1, x2, y2 = bbox.get("x1", 0), bbox.get("y1", 0), bbox.get("x2", 0), bbox.get("y2", 0)
+        else:
+            x1, y1, x2, y2 = int(bbox[0]), int(bbox[1]), int(bbox[2]), int(bbox[3])
         label = detection.get("label", "unknown")
         confidence = detection.get("confidence", 0.0)
         tracking_id = detection.get("tracking_id")

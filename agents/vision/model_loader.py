@@ -207,9 +207,15 @@ class ModelLoader:
     def _prepare_image(self, image: Any, target_shape: Tuple[int, int]) -> np.ndarray:
         if cv2 is None:
             raise RuntimeError("OpenCV is required for image preprocessing")
-        image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        resized = cv2.resize(image_rgb, target_shape, interpolation=cv2.INTER_AREA)
-        tensor = resized.astype(np.float32) / 255.0
+        try:
+            from ultralytics.data.augment import LetterBox
+        except ImportError as exc:
+            raise RuntimeError("Ultralytics is required for YOLO-compatible preprocessing") from exc
+
+        letterbox = LetterBox(target_shape, auto=False, scale_fill=False, scaleup=True, center=True, stride=32)
+        padded = letterbox(image=image)
+        rgb = cv2.cvtColor(padded, cv2.COLOR_BGR2RGB)
+        tensor = rgb.astype(np.float32) / 255.0
         return np.transpose(tensor, (2, 0, 1))[None, ...]
 
     def _decode_label(self, label: Any, labels: Optional[List[str]] = None) -> str:
@@ -219,7 +225,38 @@ class ModelLoader:
             return label
         return str(label or "object")
 
-    def _parse_raw_predictions(self, raw: Any, image_shape: Tuple[int, int, int]) -> List[Dict[str, Any]]:
+
+    def _log_tensor_summary(self, raw: Any, name: str) -> None:
+        if raw is None:
+            logger.info("%s ONNX raw output is None", name)
+            return
+        if isinstance(raw, (list, tuple)):
+            logger.info("%s ONNX returned %d tensors", name, len(raw))
+            for index, tensor in enumerate(raw):
+                array = np.asarray(tensor)
+                logger.info(
+                    "%s tensor[%d] dtype=%s shape=%s first_values=%s",
+                    name,
+                    index,
+                    array.dtype,
+                    array.shape,
+                    array.reshape(-1)[:5].tolist() if array.size > 0 else [],
+                )
+        else:
+            array = np.asarray(raw)
+            logger.info(
+                "%s ONNX returned raw tensor dtype=%s shape=%s first_values=%s",
+                name,
+                array.dtype,
+                array.shape,
+                array.reshape(-1)[:5].tolist() if array.size > 0 else [],
+            )
+    def _parse_raw_predictions(
+        self,
+        raw: Any,
+        image_shape: Tuple[int, int, int],
+        model_shape: Optional[Tuple[int, int]] = None,
+    ) -> List[Dict[str, Any]]:
         if raw is None:
             return []
         if isinstance(raw, (list, tuple)) and len(raw) == 1:
@@ -227,52 +264,83 @@ class ModelLoader:
         array = np.asarray(raw)
         if array.ndim == 0:
             return []
-        if array.ndim == 3 and array.shape[0] == 1:
-            array = array[0]
-        if array.ndim == 2 and array.shape[1] >= 5:
-            predictions: List[Dict[str, Any]] = []
-            for row in array:
-                if len(row) < 5:
-                    continue
-                x1, y1, x2, y2, conf = [float(value) for value in row[:5]]
-                predictions.append(
-                    {
-                        "bbox": {
-                            "x1": x1,
-                            "y1": y1,
-                            "x2": x2,
-                            "y2": y2,
-                        },
-                        "confidence": conf,
-                        "label": 0,
-                    }
-                )
-            return predictions
-        return []
+
+        try:
+            import torch
+            from ultralytics.utils import ops
+            from ultralytics.utils.nms import non_max_suppression
+        except ImportError as exc:
+            logger.warning("Ultralytics is required for YOLO-compatible prediction parsing: %s", exc)
+            return []
+
+        tensor = torch.from_numpy(array) if isinstance(array, np.ndarray) else raw
+        if tensor.ndim == 2:
+            tensor = tensor.unsqueeze(0)
+        outputs = non_max_suppression(
+            tensor,
+            float(self.config.model.confidence_threshold),
+            0.45,
+            None,
+            False,
+            1000,
+        )
+        if not outputs or outputs[0] is None or len(outputs[0]) == 0:
+            return []
+
+        if model_shape is None:
+            model_shape = image_shape[:2]
+        scaled = ops.scale_boxes(model_shape, outputs[0][:, :4], image_shape[:2])
+
+        detections: List[Dict[str, Any]] = []
+        for index, det in enumerate(outputs[0]):
+            x1, y1, x2, y2 = scaled[index].tolist()
+            confidence = float(det[4].item()) if hasattr(det[4], "item") else float(det[4])
+            class_id = int(det[5].item()) if hasattr(det[5], "item") else int(det[5])
+            detections.append(
+                {
+                    "label": class_id,
+                    "bbox": [float(x1), float(y1), float(x2), float(y2)],
+                    "confidence": confidence,
+                }
+            )
+        return detections
 
     def _predict_onnx(self, model_info: ModelInfo, image: Any) -> List[Dict[str, Any]]:
         if model_info.onnx_session is None:
             return []
+        input_shape = model_info.onnx_session.get_inputs()[0].shape
+        target_height = int(input_shape[2] or self.config.camera.resize_height)
+        target_width = int(input_shape[3] or self.config.camera.resize_width)
+        data = self._prepare_image(image, (target_width, target_height))
+        input_name = model_info.onnx_session.get_inputs()[0].name
         try:
-            prepared = self._prepare_image(image, (640, 640))
-            outputs = model_info.onnx_session.run(None, {model_info.onnx_session.get_inputs()[0].name: prepared})
-            return self._parse_raw_predictions(outputs, image.shape[:2])
+            raw_outputs = model_info.onnx_session.run(None, {input_name: data})
+            self._log_tensor_summary(raw_outputs, model_info.name)
+            outputs = raw_outputs[0] if isinstance(raw_outputs, (list, tuple)) else raw_outputs
+            return self._parse_raw_predictions(outputs, image.shape, (target_height, target_width))
         except Exception as exc:
-            logger.warning("ONNX inference failed for %s: %s", model_info.name, exc)
+            logger.exception("ONNX prediction failed for %s: %s", model_info.name, exc)
             return []
 
     def _predict_torch(self, model_info: ModelInfo, image: Any) -> List[Dict[str, Any]]:
-        if model_info.torch_model is None:
-            return []
         try:
             import torch
-
-            prepared = self._prepare_image(image, (640, 640))
+            if model_info.torch_model is None:
+                return []
+            input_shape = next(iter(model_info.torch_model.parameters())).shape
+            target_height = int(input_shape[2]) if len(input_shape) >= 3 else self.config.camera.resize_height
+            target_width = int(input_shape[3]) if len(input_shape) >= 4 else self.config.camera.resize_width
+            data = self._prepare_image(image, (target_width, target_height))
+            tensor = torch.from_numpy(data)
             with torch.no_grad():
-                outputs = model_info.torch_model(torch.from_numpy(prepared))
-            return self._parse_raw_predictions(outputs, image.shape[:2])
+                raw_output = model_info.torch_model(tensor)
+            if isinstance(raw_output, (list, tuple)) and len(raw_output) == 1:
+                raw_output = raw_output[0]
+            if hasattr(raw_output, "cpu"):
+                raw_output = raw_output.cpu().numpy()
+            return self._parse_raw_predictions(raw_output, image.shape, (target_height, target_width))
         except Exception as exc:
-            logger.warning("Torch inference failed for %s: %s", model_info.name, exc)
+            logger.exception("PyTorch prediction failed for %s: %s", model_info.name, exc)
             return []
 
     def predict(self, name: str, image: Any) -> Dict[str, Any]:
