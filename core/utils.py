@@ -19,7 +19,7 @@ def ensure_directory(path: Path) -> Path:
 
 def safe_read_text(path: Path) -> str:
     try:
-        return path.read_text(encoding="utf-8").strip()
+        return path.read_text(encoding="utf-8-sig").strip()
     except Exception:
         return ""
 

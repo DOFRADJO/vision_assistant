@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import json
 import logging
+import ast
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -55,6 +57,7 @@ class ModelInfo:
     pt_path: Optional[Path] = None
     onnx_session: Optional[Any] = None
     torch_model: Optional[Any] = None
+    resolved_input_size: Optional[Tuple[int, int]] = None
 
 
 class ModelLoader:
@@ -174,6 +177,17 @@ class ModelLoader:
     def _initialize_real_detector(self, model_info: ModelInfo) -> None:
         if model_info.onnx_path and self.config.model.use_onnx:
             model_info.onnx_session = self._load_onnx_session(model_info.onnx_path)
+            if model_info.onnx_session is not None:
+                embedded_labels = self._read_onnx_labels(model_info.onnx_session)
+                if embedded_labels and embedded_labels != model_info.labels:
+                    logger.warning(
+                        "%s labels.txt contains %d classes but the ONNX graph declares %d; "
+                        "using the labels embedded in the ONNX model.",
+                        model_info.name,
+                        len(model_info.labels),
+                        len(embedded_labels),
+                    )
+                    model_info.labels = embedded_labels
         if model_info.torch_model is None and model_info.pt_path and self._torch_available and self.config.model.use_torch:
             model_info.torch_model = self._load_torch_model(model_info.pt_path)
         if model_info.onnx_session or model_info.torch_model:
@@ -193,6 +207,19 @@ class ModelLoader:
         except Exception as exc:
             logger.warning("Failed to load ONNX model %s: %s", path, exc)
             return None
+
+    def _read_onnx_labels(self, session: Any) -> List[str]:
+        """Read Ultralytics class names embedded in an ONNX graph."""
+        try:
+            raw_names = session.get_modelmeta().custom_metadata_map.get("names", "")
+            parsed = ast.literal_eval(raw_names)
+            if isinstance(parsed, dict):
+                return [str(parsed[index]) for index in sorted(parsed)]
+            if isinstance(parsed, (list, tuple)):
+                return [str(item) for item in parsed]
+        except (AttributeError, SyntaxError, ValueError, TypeError, KeyError):
+            logger.debug("No valid class names embedded in ONNX metadata.", exc_info=True)
+        return []
 
     def _extract_metadata_input_size(self, metadata: Dict[str, Any]) -> Optional[Tuple[int, int]]:
         raw_size = metadata.get("input_size")
@@ -220,6 +247,8 @@ class ModelLoader:
         return width, height
 
     def _resolve_onnx_input_size(self, model_info: ModelInfo) -> Tuple[int, int]:
+        if model_info.resolved_input_size is not None:
+            return model_info.resolved_input_size
         input_shape = None
         try:
             input_shape = model_info.onnx_session.get_inputs()[0].shape
@@ -230,6 +259,7 @@ class ModelLoader:
         target_size = self._input_size_from_onnx_shape(input_shape)
         if target_size is not None:
             logger.info("Using ONNX input shape for %s: %s", model_info.name, target_size)
+            model_info.resolved_input_size = target_size
             return target_size
 
         metadata_size = self._extract_metadata_input_size(model_info.metadata)
@@ -240,6 +270,7 @@ class ModelLoader:
                 input_shape,
                 metadata_size,
             )
+            model_info.resolved_input_size = metadata_size
             return metadata_size
 
         config_size = (self.config.camera.resize_width, self.config.camera.resize_height)
@@ -249,6 +280,7 @@ class ModelLoader:
             input_shape,
             config_size,
         )
+        model_info.resolved_input_size = config_size
         return config_size
 
     def _load_torch_model(self, path: Path) -> Optional[Any]:
@@ -285,13 +317,13 @@ class ModelLoader:
 
     def _log_tensor_summary(self, raw: Any, name: str) -> None:
         if raw is None:
-            logger.info("%s ONNX raw output is None", name)
+            logger.debug("%s ONNX raw output is None", name)
             return
         if isinstance(raw, (list, tuple)):
-            logger.info("%s ONNX returned %d tensors", name, len(raw))
+            logger.debug("%s ONNX returned %d tensors", name, len(raw))
             for index, tensor in enumerate(raw):
                 array = np.asarray(tensor)
-                logger.info(
+                logger.debug(
                     "%s tensor[%d] dtype=%s shape=%s first_values=%s",
                     name,
                     index,
@@ -301,7 +333,7 @@ class ModelLoader:
                 )
         else:
             array = np.asarray(raw)
-            logger.info(
+            logger.debug(
                 "%s ONNX returned raw tensor dtype=%s shape=%s first_values=%s",
                 name,
                 array.dtype,
@@ -421,12 +453,30 @@ class ModelLoader:
     def predict_all(self, image: Any) -> Dict[str, List[Dict[str, Any]]]:
         """Run prediction on every loaded detector and return categorized results."""
         results: Dict[str, List[Dict[str, Any]]] = {}
-        for name in sorted(self.detectors):
+        names = sorted(self.detectors)
+
+        def run_detector(name: str) -> Tuple[str, Dict[str, Any]]:
             try:
-                raw_predictions = self.predict(name, image)
+                return name, self.predict(name, image)
             except Exception as exc:
                 logger.exception("Prediction failed for %s: %s", name, exc)
-                raw_predictions = {"model": name, "detections": []}
+                return name, {"model": name, "detections": []}
+
+        completed: Dict[str, Dict[str, Any]] = {}
+        workers = max(1, min(int(self.config.model.max_workers), len(names)))
+        if workers == 1:
+            for name in names:
+                model_name, prediction = run_detector(name)
+                completed[model_name] = prediction
+        else:
+            with ThreadPoolExecutor(max_workers=workers, thread_name_prefix="vision-model") as executor:
+                futures = [executor.submit(run_detector, name) for name in names]
+                for future in as_completed(futures):
+                    model_name, prediction = future.result()
+                    completed[model_name] = prediction
+
+        for name in names:
+            raw_predictions = completed[name]
             category = normalize_category(name)
             normalized_predictions: List[Dict[str, Any]] = []
             for item in raw_predictions.get("detections", []):

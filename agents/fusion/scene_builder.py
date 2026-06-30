@@ -21,6 +21,10 @@ CATEGORY_MAP: Dict[str, str] = {
     "vehicle": "vehicles",
     "car": "vehicles",
     "truck": "vehicles",
+    "bicycle": "vehicles",
+    "motorcycle": "vehicles",
+    "train": "vehicles",
+    "boat": "vehicles",
     "bus": "vehicles",
     "traffic": "traffic_signs",
     "traffic_light": "traffic_signs",
@@ -39,14 +43,27 @@ CATEGORY_MAP: Dict[str, str] = {
     "chair": "furniture",
     "sofa": "furniture",
     "table": "furniture",
+    "bed": "furniture",
+    "bench": "furniture",
+    "couch": "furniture",
     "electronics": "electronics",
     "electronic": "electronics",
     "phone": "electronics",
     "computer": "electronics",
+    "laptop": "electronics",
+    "monitor": "electronics",
+    "tv": "electronics",
+    "cell phone": "electronics",
     "construction": "construction",
     "work zone": "construction",
     "food": "food",
     "plate": "food",
+    "apple": "food",
+    "banana": "food",
+    "orange": "food",
+    "sandwich": "food",
+    "pizza": "food",
+    "cake": "food",
     "animal": "animals",
     "dog": "animals",
     "cat": "animals",
@@ -62,12 +79,14 @@ def _bucket_for(source: str, label: str, category_map: Dict[str, str]) -> str:
     normalized_source = _normalize_text(source)
     normalized_label = _normalize_text(label)
 
+    # A model may contain several semantic classes (for example COCO). The
+    # detected label is therefore more precise than the model directory name.
     for token, bucket in category_map.items():
-        if token in normalized_source:
+        if token == normalized_label or token in normalized_label:
             return bucket
 
     for token, bucket in category_map.items():
-        if token in normalized_label:
+        if token in normalized_source:
             return bucket
 
     if normalized_source.endswith("s"):
@@ -130,8 +149,40 @@ class SceneBuilder:
                     metadata=metadata,
                 )
                 scene.add(bucket, scene_object)
+        self._remove_cross_model_duplicates(scene)
         logger.debug("Built scene with %d objects from %d sources", len(scene.all_objects), len(raw_predictions))
         return scene
+
+    @staticmethod
+    def _iou(first: SceneObject, second: SceneObject) -> float:
+        x1 = max(first.bbox[0], second.bbox[0])
+        y1 = max(first.bbox[1], second.bbox[1])
+        x2 = min(first.bbox[2], second.bbox[2])
+        y2 = min(first.bbox[3], second.bbox[3])
+        intersection = max(0.0, x2 - x1) * max(0.0, y2 - y1)
+        first_area = max(0.0, first.width) * max(0.0, first.height)
+        second_area = max(0.0, second.width) * max(0.0, second.height)
+        union = first_area + second_area - intersection
+        return intersection / union if union > 0 else 0.0
+
+    def _remove_cross_model_duplicates(self, scene: Scene, threshold: float = 0.55) -> None:
+        """Keep the strongest overlapping detection produced by two models."""
+        kept: List[SceneObject] = []
+        ranked = sorted(scene.all_objects, key=lambda obj: obj.confidence, reverse=True)
+        for candidate in ranked:
+            duplicate = any(
+                candidate.category == existing.category
+                and _normalize_text(candidate.label) == _normalize_text(existing.label)
+                and candidate.source_model != existing.source_model
+                and self._iou(candidate, existing) >= threshold
+                for existing in kept
+            )
+            if not duplicate:
+                kept.append(candidate)
+
+        for obj in list(scene.all_objects):
+            if obj not in kept:
+                scene.remove(obj, obj.category)
 
     def summarize(self, raw_predictions: Dict[str, List[Dict[str, Any]]]) -> Dict[str, int]:
         return self.build_scene(raw_predictions).summary()

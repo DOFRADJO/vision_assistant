@@ -11,6 +11,7 @@ class CameraConfig:
     source_type: str = "webcam"
     device_index: int = 0
     video_path: str = ""
+    demo_video_path: str = "runs/detect/predict/0.avi"
     ip_camera_url: str = ""
     resize_width: int = 640
     resize_height: int = 480
@@ -22,7 +23,7 @@ class SpeechConfig:
     backend: str = "auto"
     rate: int = 150
     volume: float = 1.0
-    language: str = "en"
+    language: str = "fr"
     queue_size: int = 8
     priority_interrupt: bool = True
 
@@ -48,6 +49,8 @@ class ModelConfig:
     use_onnx: bool = True
     use_torch: bool = False
     confidence_threshold: float = 0.25
+    # ONNX Runtime already parallelizes each graph internally. Running several
+    # sessions concurrently is slower on the reference CPU.
     max_workers: int = 4
     supported_formats: List[str] = field(default_factory=lambda: [".onnx", ".pt"])
 
@@ -88,6 +91,10 @@ class VisionAssistantConfig:
     paths: PathsConfig = field(default_factory=PathsConfig)
     logging: LoggingConfig = field(default_factory=LoggingConfig)
     debug: bool = False
+
+
+# Compatibility name retained for integrations written against the first API.
+AppConfig = VisionAssistantConfig
 
 
 _CONFIG: Optional[VisionAssistantConfig] = None

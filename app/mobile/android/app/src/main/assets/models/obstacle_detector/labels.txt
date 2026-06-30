@@ -1,0 +1,5 @@
+stairs
+door
+trash_bin
+cone
+obstacle

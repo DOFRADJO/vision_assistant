@@ -32,6 +32,8 @@ class DecisionEngine:
 
     # Default priority map (can be replaced by setting instance attribute)
     DEFAULT_PRIORITY: Dict[str, int] = {
+        "vehicle_approaching": 110,
+        "person_approaching": 80,
         "stairs_present": 100,
         "wet_floor": 95,
         "obstacle": 90,
@@ -50,6 +52,8 @@ class DecisionEngine:
 
     # TTLs in seconds for announcements by reason
     DEFAULT_TTL: Dict[str, float] = {
+        "vehicle_approaching": 3.0,
+        "person_approaching": 5.0,
         "stairs_present": 5.0,
         "wet_floor": 10.0,
         "obstacle": 10.0,
@@ -98,20 +102,23 @@ class DecisionEngine:
         # TTL handling: determine TTL for this reason
         ttl = self.ttl_map.get(best_reason, 10.0)
         expired = (now - self._last_spoken_at) >= ttl
+        message = report.summary or "Information sur la scène."
 
-        # If same reason and not expired -> ignore
+        # If same reason and not expired AND the message is the exact same -> ignore
         if self._last_reason == best_reason and not expired:
-            return Decision(priority=0, action="IGNORE", message="", reason=best_reason, danger_level=report.danger_level)
+            if getattr(self, "_last_message", "") == message:
+                return Decision(priority=0, action="IGNORE", message="", reason=best_reason, danger_level=report.danger_level)
 
-        # If a previous decision exists and has higher priority and is not expired -> ignore
+        # If a previous decision exists and has higher priority and is not expired AND message is the same -> ignore
         if self._last_reason and not expired and self._last_priority > best_priority:
-            return Decision(priority=0, action="IGNORE", message="", reason=best_reason, danger_level=report.danger_level)
+            if getattr(self, "_last_message", "") == message:
+                return Decision(priority=0, action="IGNORE", message="", reason=best_reason, danger_level=report.danger_level)
 
         # Otherwise, produce a SPEAK decision
         decision = Decision(
             priority=best_priority,
             action="SPEAK",
-            message=report.summary or "Information sur la scène.",
+            message=message,
             reason=best_reason,
             danger_level=report.danger_level,
         )
@@ -120,6 +127,7 @@ class DecisionEngine:
         self._last_reason = best_reason
         self._last_priority = best_priority
         self._last_spoken_at = now
+        self._last_message = message
 
         return decision
 

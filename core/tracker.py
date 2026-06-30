@@ -14,13 +14,22 @@ class Track:
     confidence: float
     bbox: Tuple[float, float, float, float]
     metadata: Dict[str, Any] = field(default_factory=dict)
+    age: int = 0
+    hits: int = 1
 
 
 class Tracker:
-    def __init__(self, tracker_type: str = "iou", iou_threshold: float = 0.35, max_age: int = 10) -> None:
+    def __init__(
+        self,
+        tracker_type: str = "iou",
+        iou_threshold: float = 0.35,
+        max_age: int = 10,
+        min_hits: int = 2,
+    ) -> None:
         self.tracker_type = tracker_type
         self.iou_threshold = iou_threshold
         self.max_age = max_age
+        self.min_hits = min_hits
         self.tracks: List[Track] = []
         self._next_id = 1
         self._active_ids: Dict[int, int] = {}
@@ -54,16 +63,21 @@ class Tracker:
             return tracked
 
         if not detections:
-            self.tracks = [track for track in self.tracks if getattr(track, "metadata", {}).get("age", 0) < self.max_age]
+            for track in self.tracks:
+                track.age += 1
+            self.tracks = [track for track in self.tracks if track.age <= self.max_age]
             return []
 
-        matched: List[int] = []
+        matched: set[int] = set()
         for detection in detections:
             bbox = tuple(float(v) for v in detection.get("bbox", [0, 0, 0, 0]))
+            label = str(detection.get("label", "object")).strip().lower()
             best_track: Optional[Track] = None
             best_score = 0.0
             for track in self.tracks:
                 if track.track_id in matched:
+                    continue
+                if track.label.strip().lower() != label:
                     continue
                 score = self._compute_iou(bbox, track.bbox)
                 if score > best_score and score >= self.iou_threshold:
@@ -75,9 +89,53 @@ class Tracker:
                 best_track = Track(track_id=track_id, label=detection.get("label", "object"), confidence=detection.get("confidence", 0.0), bbox=bbox)
                 self.tracks.append(best_track)
             else:
-                matched.append(best_track.track_id)
+                previous_bbox = best_track.bbox
+                motion = self._motion_metadata(previous_bbox, bbox)
+                previous_streak = int(best_track.metadata.get("approach_streak", 0))
+                approach_streak = previous_streak + 1 if motion.pop("approach_candidate") else 0
+                motion["approach_streak"] = approach_streak
+                motion["approaching"] = approach_streak >= 2 and best_track.hits + 1 >= self.min_hits
+                best_track.metadata = motion
+                best_track.bbox = bbox
+                best_track.confidence = float(detection.get("confidence", 0.0))
+                best_track.age = 0
+                best_track.hits += 1
+            matched.add(best_track.track_id)
             result = dict(detection)
             result["tracking_id"] = best_track.track_id
+            result["track_hits"] = best_track.hits
+            result.update(best_track.metadata)
             tracked.append(result)
-        self.tracks = [track for track in self.tracks if getattr(track, "metadata", {}).get("age", 0) < self.max_age]
+
+        for track in self.tracks:
+            if track.track_id not in matched:
+                track.age += 1
+        self.tracks = [track for track in self.tracks if track.age <= self.max_age]
         return tracked
+
+    @staticmethod
+    def _motion_metadata(
+        previous: Tuple[float, float, float, float],
+        current: Tuple[float, float, float, float],
+    ) -> Dict[str, Any]:
+        previous_center = ((previous[0] + previous[2]) / 2.0, (previous[1] + previous[3]) / 2.0)
+        current_center = ((current[0] + current[2]) / 2.0, (current[1] + current[3]) / 2.0)
+        dx = current_center[0] - previous_center[0]
+        dy = current_center[1] - previous_center[1]
+        previous_area = max(1.0, (previous[2] - previous[0]) * (previous[3] - previous[1]))
+        current_area = max(1.0, (current[2] - current[0]) * (current[3] - current[1]))
+        area_ratio = current_area / previous_area
+
+        if abs(dx) < 3.0 and abs(dy) < 3.0:
+            direction = "stationary"
+        elif abs(dx) >= abs(dy):
+            direction = "right" if dx > 0 else "left"
+        else:
+            direction = "down" if dy > 0 else "up"
+
+        return {
+            "movement_direction": direction,
+            "approach_candidate": area_ratio >= 1.12,
+            "area_change_ratio": round(area_ratio, 3),
+            "motion_vector": [round(dx, 2), round(dy, 2)],
+        }
