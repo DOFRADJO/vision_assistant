@@ -42,7 +42,7 @@ class DesktopApp:
                 break
             result = self.coordinator.process_frame(frame)
             annotated = draw_predictions(frame, result.get("detections", []))
-            cv2.putText(annotated, f"FPS: {self.config.camera.fps:.2f}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+            cv2.putText(annotated, f"FPS: {result.get('fps', 0.0):.2f}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
             cv2.imshow("Vision Assistant", annotated)
             if cv2.waitKey(1) & 0xFF == ord("q"):
                 break

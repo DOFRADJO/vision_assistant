@@ -70,7 +70,14 @@ class SpeechAgent:
 
         self._counter += 1
         self._queue.put((-priority, self._counter, message))
-        return {"enqueued": True, "message": message, "priority": priority, "backend": "pyttsx3" if self._engine is not None else "log"}
+        return {
+            "spoken": True,
+            "queued": True,
+            "enqueued": True,
+            "message": message,
+            "priority": priority,
+            "backend": "pyttsx3" if self._engine is not None else "log",
+        }
 
     def stop(self) -> None:
         self._stop_event.set()

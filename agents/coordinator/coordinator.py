@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Optional
 
 from agents.fusion.scene_builder import SceneBuilder
 from agents.reasoning.scene_interpreter import SceneInterpreter
+from agents.reasoning.conversation_manager import ConversationManager
 from agents.reasoning.decision_engine import DecisionEngine
 from agents.reasoning.scene_memory import SceneMemory
 from agents.speech.speech_agent import SpeechAgent
@@ -31,8 +32,10 @@ class Coordinator:
             tracker_type=self.config.tracking.tracker_type,
             iou_threshold=self.config.tracking.iou_threshold,
             max_age=self.config.tracking.max_age,
+            min_hits=self.config.tracking.min_hits,
         )
         self.scene_memory = SceneMemory()
+        self.conversation_manager = ConversationManager(min_announce_interval=3.0)
         self.speech_planner = SpeechPlanner()
         self.speech_agent = SpeechAgent(config=self.config)
         self.last_result: Dict[str, Any] = {}
@@ -69,7 +72,23 @@ class Coordinator:
         frame_start = time.perf_counter()
         self.frame_count += 1
 
-        vision_output = self.vision_agent.predict(frame, frame_id=self.frame_count)
+        original_detectors = self.model_loader.detectors.copy()
+        try:
+            if self.frame_count % 2 != 0:
+                # Modèles critiques (frames impaires)
+                active_models = {'obstacle_detector', 'people_detector', 'people_tracking'}
+            elif self.frame_count % 4 == 0:
+                # Modèles extérieurs (frames paires divisibles par 4)
+                active_models = {'cross_traffic_detector', 'traffic_detector', 'sidewalk_detector'}
+            else:
+                # Modèles intérieurs (les autres frames paires)
+                active_models = {'electronic_detector', 'food_detector', 'wall_switch_detection'}
+                
+            self.model_loader.detectors = {k: v for k, v in original_detectors.items() if k in active_models}
+            vision_output = self.vision_agent.predict(frame, frame_id=self.frame_count)
+        finally:
+            self.model_loader.detectors = original_detectors
+
         vision_time = time.perf_counter() - frame_start
 
         scene = self.scene_builder.build_scene(vision_output.get("raw_predictions", {}))
@@ -82,15 +101,24 @@ class Coordinator:
         report = self.scene_interpreter.interpret(tracked_scene)
         reasoning_time = time.perf_counter() - frame_start - vision_time - fusion_time - tracking_time
 
-        decision = self.decision_engine.decide(report)
-        planned = self.speech_planner.plan(decision)
-        filtered: List[Dict[str, Any]] = []
-        for message in planned:
-            if self.scene_memory.should_speak(str(message.get("message", ""))):
-                filtered.append(message)
+        # Attach the scene summary so ConversationManager can read real counts.
+        report.scene_summary = {k: v for k, v in tracked_scene.summary().items()}
 
-        for message in filtered:
-            self.speech_agent.speak(message["message"], priority=message.get("priority", 1))
+        # --- ConversationManager gate ---
+        announce_decision = self.conversation_manager.should_announce(report)
+
+        filtered: List[Dict[str, Any]] = []
+        if announce_decision.allowed:
+            decision = self.decision_engine.decide(report)
+            planned = self.speech_planner.plan(decision)
+            for message in planned:
+                if self.scene_memory.should_speak(str(message.get("message", ""))):
+                    filtered.append(message)
+            for message in filtered:
+                self.speech_agent.speak(message["message"], priority=message.get("priority", 1))
+        else:
+            decision = self.decision_engine.decide(report)  # keep state advancing
+            planned = []
 
         speech_time = time.perf_counter() - frame_start - vision_time - fusion_time - tracking_time - reasoning_time
         elapsed = time.perf_counter() - frame_start
@@ -114,6 +142,7 @@ class Coordinator:
             "timestamp": vision_output.get("timestamp"),
             "detections": vision_output.get("detections", []),
             "scene": summary,
+            "tracked_scene": tracked_scene.to_dict(),
             "scene_report": report.to_dict(),
             "decision": decision.__dict__ if decision is not None else {},
             "events": report.events,

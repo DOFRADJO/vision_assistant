@@ -41,6 +41,10 @@ def count_category(scene: Scene, category: str) -> int:
     return 0
 
 
+def category_is_approaching(scene: Scene, category: str) -> bool:
+    return any(bool(obj.metadata.get("approaching")) for obj in scene.get(category))
+
+
 def important_objects(scene: Scene, labels: List[str], categories: List[str]) -> List[SceneObject]:
     selected: List[SceneObject] = []
     lowercase_labels = {_normalize_label(label) for label in labels}
@@ -57,6 +61,26 @@ def important_objects(scene: Scene, labels: List[str], categories: List[str]) ->
 
 
 RULES: List[SceneRule] = [
+    SceneRule(
+        name="vehicle_approaching",
+        condition=lambda scene: category_is_approaching(scene, "vehicles"),
+        summary="Attention, un véhicule s'approche.",
+        danger_level="CRITICAL",
+        priority=100,
+        events=["vehicle_approaching"],
+        recommendations=["Arrêtez-vous et éloignez-vous de sa trajectoire."],
+        important_categories=["vehicles"],
+    ),
+    SceneRule(
+        name="person_approaching",
+        condition=lambda scene: category_is_approaching(scene, "persons"),
+        summary="Une personne s'approche de vous.",
+        danger_level="MEDIUM",
+        priority=70,
+        events=["person_approaching"],
+        recommendations=["Restez attentif à son déplacement."],
+        important_categories=["persons"],
+    ),
     SceneRule(
         name="wet_floor",
         condition=lambda scene: has_label(scene, "wet_floor") or has_label(scene, "wet floor"),
@@ -171,6 +195,26 @@ RULES: List[SceneRule] = [
         events=["crosswalk_present"],
         recommendations=["Soyez attentif à la circulation."],
         important_categories=["crosswalks"],
+    ),
+    SceneRule(
+        name="sidewalk_present",
+        condition=lambda scene: count_category(scene, "sidewalks") > 0,
+        summary="Un trottoir est détecté.",
+        danger_level="LOW",
+        priority=10,
+        events=["sidewalk_detected"],
+        recommendations=["Vous pouvez y marcher en sécurité."],
+        important_categories=["sidewalks"],
+    ),
+    SceneRule(
+        name="food_present",
+        condition=lambda scene: count_category(scene, "food") > 0,
+        summary="De la nourriture est visible.",
+        danger_level="LOW",
+        priority=5,
+        events=["food_detected"],
+        recommendations=["Information contextuelle."],
+        important_categories=["food"],
     ),
 ]
 

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import base64
 import logging
+from pathlib import Path
 from typing import Any, Dict
 
 try:
@@ -30,7 +31,9 @@ class ImagePredictRequest(BaseModel):
 
 
 class VideoPredictRequest(BaseModel):
-    video_path: str
+    video_path: str = ""
+    max_frames: int = 300
+    sample_every: int = 1
 
 
 class SpeakRequest(BaseModel):
@@ -77,8 +80,11 @@ def models(request: Request) -> Dict[str, Any]:
 
 @app.get("/history")
 def history(request: Request) -> Dict[str, Any]:
-    memory_agent = request.app.state.coordinator.memory_agent
-    return {"history": memory_agent.get_history()}
+    memory = request.app.state.coordinator.scene_memory
+    return {
+        "objects": [item.__dict__ for item in memory.objects.values()],
+        "last_events": memory.get_new_events(),
+    }
 
 
 @app.get("/config")
@@ -89,6 +95,7 @@ def config_endpoint(request: Request) -> Dict[str, Any]:
             "source_type": config_data.camera.source_type,
             "device_index": config_data.camera.device_index,
             "video_path": config_data.camera.video_path,
+            "demo_video_path": config_data.camera.demo_video_path,
             "ip_camera_url": config_data.camera.ip_camera_url,
         },
         "speech": {
@@ -122,19 +129,54 @@ def predict_image(request: Request, payload: ImagePredictRequest) -> Dict[str, A
         logger.exception("Predict request failed: %s", exc)
         raise HTTPException(status_code=400, detail="Invalid base64 image")
 
-    result = request.app.state.vision_agent.predict(image)
-    return {"status": "ok", "frame_id": result.get("frame_id"), "detections": result.get("detections", []), "scene": result.get("raw_predictions", {})}
+    return request.app.state.coordinator.process_frame(image)
 
 
 @app.post("/predict/video")
 def predict_video(request: Request, payload: VideoPredictRequest) -> Dict[str, Any]:
-    return {"status": "ok", "video_path": payload.video_path, "message": "Video inference is available through the desktop pipeline."}
+    if cv2 is None:
+        raise HTTPException(status_code=500, detail="OpenCV is required to process videos")
+    configured_path = payload.video_path or request.app.state.config.camera.demo_video_path
+    video_path = Path(configured_path)
+    if not video_path.is_absolute():
+        video_path = request.app.state.config.paths.root / video_path
+    if not video_path.is_file():
+        raise HTTPException(status_code=404, detail="Video file not found")
+
+    capture = cv2.VideoCapture(str(video_path))
+    if not capture.isOpened():
+        raise HTTPException(status_code=400, detail="Unable to open video")
+
+    processed = 0
+    read_frames = 0
+    last_result: Dict[str, Any] = {}
+    max_frames = max(1, min(payload.max_frames, 10_000))
+    sample_every = max(1, payload.sample_every)
+    try:
+        while processed < max_frames:
+            ok, image = capture.read()
+            if not ok or image is None:
+                break
+            read_frames += 1
+            if (read_frames - 1) % sample_every:
+                continue
+            last_result = request.app.state.coordinator.process_frame(image)
+            processed += 1
+    finally:
+        capture.release()
+
+    return {
+        "status": "ok",
+        "video_path": str(video_path),
+        "frames_read": read_frames,
+        "frames_processed": processed,
+        "last_result": last_result,
+    }
 
 
 @app.post("/reload")
 def reload_models(request: Request) -> Dict[str, Any]:
     request.app.state.model_loader.load_all_models()
-    request.app.state.vision_agent.load_models()
     return {"status": "ok", "models": sorted(request.app.state.model_loader.detectors.keys())}
 
 
