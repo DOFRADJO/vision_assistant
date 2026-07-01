@@ -1,3 +1,4 @@
+import '../core/coco_classes.dart';
 import '../core/navis_text.dart';
 import '../models/app_models.dart';
 
@@ -10,8 +11,9 @@ class SceneInterpreter {
   final Map<String, double> _prevAreaByKey = {};
   final Map<String, DateTime> _lastAlertByKey = {};
 
-  static const _vehicles = {'car', 'bus', 'truck', 'train', 'bicycle', 'motorcycle'};
-  static const _danger = {'stop_sign', 'traffic_light'};
+  static const _vehicles = CocoClasses.vehicles;
+  static const _danger = CocoClasses.dangers;
+  static const _animals = CocoClasses.animals;
 
   SceneAnalysis analyze(
     List<DetectionBox> boxes, {
@@ -25,8 +27,13 @@ class SceneInterpreter {
     final people = boxes.where((b) => b.navisLabel == 'person').toList();
     final vehicles = boxes.where((b) => _vehicles.contains(b.navisLabel)).toList();
     final dangers = boxes.where((b) => _danger.contains(b.navisLabel)).toList();
+    final animals = boxes.where((b) => _animals.contains(b.navisLabel)).toList();
     final others = boxes
-        .where((b) => b.navisLabel != 'person' && !_vehicles.contains(b.navisLabel) && !_danger.contains(b.navisLabel))
+        .where((b) =>
+            b.navisLabel != 'person' &&
+            !_vehicles.contains(b.navisLabel) &&
+            !_danger.contains(b.navisLabel) &&
+            !_animals.contains(b.navisLabel))
         .toList();
 
     final alerts = <String>[];
@@ -56,11 +63,15 @@ class SceneInterpreter {
       }
     }
 
-    for (final o in others.take(3)) {
+    for (final a in animals) {
+      details.add(_objectPhrase(a, frameWidth, frameHeight));
+    }
+
+    for (final o in others.take(8)) {
       details.add(_objectPhrase(o, frameWidth, frameHeight));
     }
 
-    final summary = _buildSummary(people.length, vehicles.length, dangers.isNotEmpty);
+    final summary = _buildSummary(people.length, vehicles.length, dangers.isNotEmpty, boxes.length);
     final spoken = _composeSpeech(alerts, details, summary);
 
     return SceneAnalysis(
@@ -130,12 +141,13 @@ class SceneInterpreter {
     return area > prev * 1.35 && (level == DistanceLevel.near || level == DistanceLevel.veryClose);
   }
 
-  String _buildSummary(int people, int vehicles, bool danger) {
+  String _buildSummary(int people, int vehicles, bool danger, int total) {
     final parts = <String>[];
     if (people > 0) parts.add('$people personne${people > 1 ? 's' : ''}');
     if (vehicles > 0) parts.add('$vehicles vehicule${vehicles > 1 ? 's' : ''}');
     if (danger) parts.add('signalisation');
-    return parts.isEmpty ? 'objets detectes' : parts.join(', ');
+    if (parts.isEmpty) return '$total objet${total > 1 ? 's' : ''} detecte${total > 1 ? 's' : ''}';
+    return parts.join(', ');
   }
 
   String _composeSpeech(List<String> alerts, List<String> details, String summary) {
@@ -146,7 +158,7 @@ class SceneInterpreter {
       buffer.write('. ');
     }
     if (details.isNotEmpty) {
-      buffer.write(details.take(3).join('. '));
+      buffer.write(details.take(6).join('. '));
       buffer.write('. ');
     }
     buffer.write('Scene: ${NavisText.clean(summary)}.');
@@ -205,7 +217,7 @@ extension DetectionBoxScene on DetectionBox {
         DistanceLevel.far => 'au loin',
       };
 
-  bool get isVehicle => const {'car', 'bus', 'truck', 'train', 'bicycle', 'motorcycle'}.contains(navisLabel);
+  bool get isVehicle => CocoClasses.vehicles.contains(navisLabel);
   bool get isPerson => navisLabel == 'person';
-  bool get isDangerSign => const {'stop_sign', 'traffic_light'}.contains(navisLabel);
+  bool get isDangerSign => CocoClasses.dangers.contains(navisLabel);
 }

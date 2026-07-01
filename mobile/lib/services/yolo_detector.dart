@@ -7,32 +7,8 @@ import 'package:flutter_onnxruntime/flutter_onnxruntime.dart';
 import 'package:image/image.dart' as img;
 
 import '../config/app_config.dart';
-import '../core/navis_constants.dart';
+import '../core/coco_classes.dart';
 import '../models/app_models.dart';
-
-/// COCO class id -> NAVIS label key
-const _cocoToNavis = <int, String>{
-  0: 'person',
-  1: 'bicycle',
-  2: 'car',
-  3: 'motorcycle',
-  5: 'bus',
-  6: 'train',
-  7: 'truck',
-  9: 'traffic_light',
-  10: 'fire_hydrant',
-  11: 'stop_sign',
-  13: 'bench',
-  16: 'dog',
-  24: 'backpack',
-  26: 'handbag',
-  39: 'bottle',
-  56: 'chair',
-  59: 'bed',
-  60: 'table',
-};
-
-const _allowedCocoIds = <int>{0, 1, 2, 3, 5, 6, 7, 9, 10, 11, 13, 16, 24, 26, 39, 56, 59, 60};
 
 class YoloDetector {
   YoloDetector._();
@@ -94,8 +70,8 @@ class YoloDetector {
     required double padY,
     required double confThreshold,
   }) {
-    // YOLOv8 ONNX output: [1, 84, 8400] flattened
-    const numClasses = 80;
+    // YOLOv8 ONNX output: [1, 84, 8400] flattened — 80 classes COCO
+    const numClasses = CocoClasses.count;
     const numAnchors = 8400;
     const channels = 4 + numClasses;
 
@@ -114,7 +90,7 @@ class YoloDetector {
         }
       }
       if (bestScore < confThreshold) continue;
-      if (!_allowedCocoIds.contains(bestClass)) continue;
+      if (bestClass < 0 || bestClass >= CocoClasses.count) continue;
 
       final cx = _asDouble(flat[0 * numAnchors + i]);
       final cy = _asDouble(flat[1 * numAnchors + i]);
@@ -126,12 +102,12 @@ class YoloDetector {
       final x2 = ((cx + w / 2) - padX) / scale;
       final y2 = ((cy + h / 2) - padY) / scale;
 
-      final navisKey = _cocoToNavis[bestClass]!;
+      final navisKey = CocoClasses.keyForId(bestClass);
       candidates.add(
         DetectionBox(
           cocoClassId: bestClass,
           navisLabel: navisKey,
-          labelFr: NavisConstants.frenchLabels[navisKey] ?? navisKey,
+          labelFr: CocoClasses.labelFr(navisKey),
           confidence: bestScore,
           x1: x1.clamp(0, sourceWidth.toDouble()),
           y1: y1.clamp(0, sourceHeight.toDouble()),

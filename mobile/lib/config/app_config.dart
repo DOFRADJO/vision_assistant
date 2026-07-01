@@ -5,7 +5,7 @@ abstract final class AppConfig {
   static const companyName = 'Propenta Tech';
   static const appUrl = 'https://navis.app';
 
-  static const modelAsset = 'assets/models/navis_18classes.onnx';
+  static const modelAsset = 'assets/models/yolov8n.onnx';
   static const labelsAsset = 'assets/config/navis_labels.json';
   static const inputSize = 640;
   static const confThreshold = 0.28;

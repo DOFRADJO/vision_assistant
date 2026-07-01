@@ -49,9 +49,14 @@ Camera / Video
 | wall_switch_detection | Interrupteurs |
 | bag_detector | Sacs (present, pas encore dans time-slice) |
 
-## Modele global (18 classes COCO)
+## Modele global (80 classes COCO — YOLOv8n)
 
-`mobile/assets/models/navis_18classes.onnx` — utilise par l'app Flutter en attendant l'integration des 13 agents.
+`mobile/assets/models/yolov8n.onnx` — modele utilise par l'app Flutter.
+Reconnait les 80 classes COCO standard (personnes, vehicules, animaux, mobilier, nourriture, etc.).
+
+Les 13 detecteurs specialises Python restent dans le depot pour la demonstration pedagogique
+(chaque etudiant a entraine son modele), mais l'app mobile s'appuie sur YOLOv8n 80 classes
+pour une meilleure precision en conditions reelles.
 
 ## Prochaine etape : integration
 

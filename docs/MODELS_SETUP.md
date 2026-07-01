@@ -29,15 +29,16 @@ Chaque dossier doit aussi contenir `labels.txt` et `metadata.json` (deja dans le
 
 Source : dossiers `training/<detecteur>/` apres entrainement, ou partage equipe (Drive, release GitHub).
 
-## Modele global NAVIS (18 classes COCO)
+## Modele global NAVIS (80 classes COCO — YOLOv8n)
 
 Pour l'application Flutter (`mobile/`) :
 
 ```
-mobile/assets/models/navis_18classes.onnx
+mobile/assets/models/yolov8n.onnx
 ```
 
-Source : export depuis le pipeline ML global du projet NAVIS.
+Source : `ml/weights/yolov8n.onnx` (YOLOv8n pre-entraine COCO, 80 classes).
+Ancien modele 18 classes : `navis_18classes.onnx` (remplace).
 
 ## Video de demonstration Flutter
 

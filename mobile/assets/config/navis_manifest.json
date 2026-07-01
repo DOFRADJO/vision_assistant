@@ -1,5 +1,6 @@
 {
-  "classes": 18,
+  "classes": 80,
+  "global_model": "assets/models/yolov8n.onnx",
   "students": [
     {
       "id": 1,
