@@ -1,0 +1,25 @@
+{
+  "model": "distance_detector",
+  "version": "1.0.0",
+  "author": "MBIDA NGUELE Paul Loïc",
+  "email": "loicpauljunior@gmail.com",
+  "school": "ENSPY — ANI-IA",
+  "framework": "YOLOv8",
+  "architecture": "YOLOv8n",
+  "task": "object-detection",
+  "description": "Détection de personnes avec estimation de distance (proche / loin) basée sur la taille de la bounding box.",
+  "input": {
+    "size": [640, 640],
+    "channels": 3,
+    "format": "RGB"
+  },
+  "output": {
+    "format": "bbox + label + confidence",
+    "labels": ["close_person", "far_person"]
+  },
+  "num_classes": 2,
+  "classes": {
+    "0": "close_person",
+    "1": "far_person"
+  }
+}
