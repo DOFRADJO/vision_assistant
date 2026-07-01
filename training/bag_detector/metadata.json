@@ -1,0 +1,37 @@
+{
+  "model_name": "bag_detector",
+  "version": "1.0",
+  "description": "Détection de sacs à dos (backpack) et valises (suitcase)",
+  "author": "NDOMKEU NZONLIE CHARLES BENZOLIES",
+  "date": "2026-07-01",
+  "project": "Vision Assistant - AIA-4",
+  "dataset": {
+    "source": "Roboflow",
+    "name": "Suitcase-BackpackDetection",
+    "url": "https://universe.roboflow.com/ml-deep-learning-workspace/suitcase-backpackdetection-eefk5",
+    "version": "7",
+    "total_images": 782,
+    "classes": ["backpack", "suitcase"],
+    "num_classes": 2
+  },
+  "model": {
+    "framework": "YOLOv8",
+    "input_size": 640,
+    "epochs": 50,
+    "batch_size": 16,
+    "augmentation": true,
+    "export_format": ["pt", "onnx"]
+  },
+  "performance": {
+    "mAP50": null,
+    "mAP50-95": null,
+    "precision": null,
+    "recall": null
+  },
+  "files": {
+    "best.pt": "Modèle PyTorch entraîné",
+    "best.onnx": "Modèle exporté ONNX pour mobile",
+    "labels.txt": "Liste des classes",
+    "metadata.json": "Ce fichier"
+  }
+}
