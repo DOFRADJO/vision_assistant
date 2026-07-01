@@ -46,6 +46,7 @@ class DesktopApp:
             cv2.imshow("Vision Assistant", annotated)
             if cv2.waitKey(1) & 0xFF == ord("q"):
                 break
+            print("")
         self.camera.release()
         cv2.destroyAllWindows()
         logger.info("Desktop pipeline stopped")
