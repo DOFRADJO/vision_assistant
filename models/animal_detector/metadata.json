@@ -1,0 +1,11 @@
+{
+    "model": "animal_detector",
+    "version": "1.0.0",
+    "author": "Tezz",
+    "framework": "YOLOv8",
+    "architecture": "YOLOv8n",
+    "input": {
+        "size": [320, 320]
+    },
+    "num_classes": 3
+}
