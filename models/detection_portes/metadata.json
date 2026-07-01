@@ -1,0 +1,15 @@
+{
+  "model_name": "detection_portes",
+  "author": "Essouck Iris Clara",
+  "version": "1.0.0",
+  "framework": "YOLOv8",
+  "input_size": [640, 640],
+  "output_format": {
+    "type": "detections",
+    "num_classes": 3,
+    "format": "xyxy",
+    "confidence_threshold": 0.3,
+    "nms_threshold": 0.45
+  },
+  "description": "Détecteur de portes, portails et entrées pour assister la navigation des personnes malvoyantes dans le cadre du projet AIA-4 : Agent Intelligent de Vision Assistée"
+}

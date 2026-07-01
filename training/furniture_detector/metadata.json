@@ -1,0 +1,49 @@
+{
+  "model_name": "furniture_detector",
+  "version": "1.0.0",
+  "architecture": "YOLOv8n",
+  "framework": "Ultralytics",
+  "training": "fine-tuning depuis yolov8n.pt pre-entraine COCO",
+  "dataset": "COCO val2017 (classes 56/57/59/60), images individuelles",
+  "classes": [
+    "chair",
+    "couch",
+    "bed",
+    "dining_table"
+  ],
+  "num_classes": 4,
+  "input_size": [
+    640,
+    640
+  ],
+  "onnx_opset": 12,
+  "epochs": 25,
+  "images_train": 283,
+  "images_val": 50,
+  "metrics": {
+    "mAP50": 0.3467409847976456,
+    "mAP50-95": 0.2119282571523951,
+    "precision": 0.42512230426782777,
+    "recall": 0.35005409493799927
+  },
+  "export_date": "2026-06-30 23:41:08",
+  "author": "TAMBA MBE",
+  "coco_ids": {
+    "56": "chair",
+    "57": "couch",
+    "59": "bed",
+    "60": "dining_table"
+  },
+  "interface_contract": {
+    "output_fields": [
+      "model",
+      "detections"
+    ],
+    "detection_fields": [
+      "label",
+      "confidence",
+      "bbox"
+    ],
+    "bbox_format": "[xmin, ymin, xmax, ymax] pixels"
+  }
+}

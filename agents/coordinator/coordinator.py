@@ -77,9 +77,9 @@ class Coordinator:
             if self.frame_count % 2 != 0:
                 # Modèles critiques (frames impaires)
                 active_models = {'obstacle_detector', 'people_detector', 'people_tracking'}
-            elif self.frame_count % 4 == 0:
+            elif self.frame_count % 6 == 0:
                 # Modèles extérieurs (frames paires divisibles par 4)
-                active_models = {'cross_traffic_detector', 'traffic_detector', 'sidewalk_detector'}
+                active_models = {'cross_traffic_detector', 'traffic_detector', 'sidewalk_detector', 'detection_portes', 'furniture_detector'}
             else:
                 # Modèles intérieurs (les autres frames paires)
                 active_models = {'electronic_detector', 'food_detector', 'wall_switch_detection'}

@@ -1,0 +1,4 @@
+chair
+couch
+bed
+dining_table
