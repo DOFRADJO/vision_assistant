@@ -6,8 +6,6 @@ venv/
 env/
 .venv_backup/
 
-
-
 # ==========================
 # Python
 # ==========================
@@ -29,6 +27,9 @@ exports/reports/
 # ==========================
 .vscode/
 .idea/
+*.iml
+*.ipr
+*.iws
 
 # ==========================
 # OS
@@ -37,7 +38,7 @@ exports/reports/
 Thumbs.db
 
 # ==========================
-# Python cache
+# Python cache / tests
 # ==========================
 .pytest_cache/
 .mypy_cache/
@@ -45,7 +46,7 @@ Thumbs.db
 htmlcov/
 
 # ==========================
-# Build
+# Build (Python)
 # ==========================
 build/
 dist/
@@ -63,7 +64,62 @@ dist/
 .env.*
 
 # ==========================
-# Temporary AI Models
+# Modeles IA (fichiers lourds — non versionnes)
+# Copier localement depuis training/ ou release equipe.
+# Voir docs/MODELS_SETUP.md
 # ==========================
-*.pt.bak
+*.onnx
+*.pt
+*.pth
+*.tflite
 *.onnx.bak
+*.pt.bak
+*.weights
+*.ckpt
+
+# Conserver la structure et les metadonnees des detecteurs
+!models/**/labels.txt
+!models/**/metadata.json
+!models/**/README.md
+!training/**/labels.txt
+!training/**/metadata.json
+!training/**/README.md
+!training/model_template/**
+
+# ==========================
+# React Native (app/mobile prototype)
+# ==========================
+app/mobile/node_modules/
+app/mobile/android/.gradle/
+app/mobile/android/app/build/
+app/mobile/android/build/
+app/mobile/ios/Pods/
+app/mobile/ios/build/
+app/mobile/.bundle/
+
+# ==========================
+# Flutter / Dart (mobile/ — app NAVIS)
+# ==========================
+mobile/.dart_tool/
+mobile/.flutter-plugins
+mobile/.flutter-plugins-dependencies
+mobile/.pub-cache/
+mobile/.pub/
+mobile/build/
+mobile/coverage/
+mobile/**/doc/api/
+mobile/**/ios/Flutter/.last_build_id
+mobile/**/ios/Pods/
+mobile/**/ios/.symlinks/
+mobile/android/.gradle/
+mobile/android/app/debug/
+mobile/android/app/profile/
+mobile/android/app/release/
+mobile/android/local.properties
+mobile/**/app.*.symbols
+mobile/**/app.*.map.json
+
+# ==========================
+# Medias lourds (demo video)
+# ==========================
+mobile/assets/videos/*.mp4

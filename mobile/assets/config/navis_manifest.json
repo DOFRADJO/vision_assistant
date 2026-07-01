@@ -1,0 +1,113 @@
+{
+  "classes": 18,
+  "students": [
+    {
+      "id": 1,
+      "class_name": "person",
+      "class_id": 0,
+      "model": "ml/weights/students/etudiant_01_person.pt"
+    },
+    {
+      "id": 2,
+      "class_name": "car",
+      "class_id": 1,
+      "model": "ml/weights/students/etudiant_02_car.pt"
+    },
+    {
+      "id": 3,
+      "class_name": "bus",
+      "class_id": 2,
+      "model": "ml/weights/students/etudiant_03_bus.pt"
+    },
+    {
+      "id": 4,
+      "class_name": "truck",
+      "class_id": 3,
+      "model": "ml/weights/students/etudiant_04_truck.pt"
+    },
+    {
+      "id": 5,
+      "class_name": "bicycle",
+      "class_id": 4,
+      "model": "ml/weights/students/etudiant_05_bicycle.pt"
+    },
+    {
+      "id": 6,
+      "class_name": "motorcycle",
+      "class_id": 5,
+      "model": "ml/weights/students/etudiant_06_motorcycle.pt"
+    },
+    {
+      "id": 7,
+      "class_name": "traffic_light",
+      "class_id": 6,
+      "model": "ml/weights/students/etudiant_07_traffic_light.pt"
+    },
+    {
+      "id": 8,
+      "class_name": "stop_sign",
+      "class_id": 7,
+      "model": "ml/weights/students/etudiant_08_stop_sign.pt"
+    },
+    {
+      "id": 9,
+      "class_name": "chair",
+      "class_id": 8,
+      "model": "ml/weights/students/etudiant_09_chair.pt"
+    },
+    {
+      "id": 10,
+      "class_name": "bed",
+      "class_id": 9,
+      "model": "ml/weights/students/etudiant_10_bed.pt"
+    },
+    {
+      "id": 11,
+      "class_name": "table",
+      "class_id": 10,
+      "model": "ml/weights/students/etudiant_11_table.pt"
+    },
+    {
+      "id": 12,
+      "class_name": "dog",
+      "class_id": 11,
+      "model": "ml/weights/students/etudiant_12_dog.pt"
+    },
+    {
+      "id": 13,
+      "class_name": "handbag",
+      "class_id": 12,
+      "model": "ml/weights/students/etudiant_13_handbag.pt"
+    },
+    {
+      "id": 14,
+      "class_name": "fire_hydrant",
+      "class_id": 13,
+      "model": "ml/weights/students/etudiant_14_fire_hydrant.pt"
+    },
+    {
+      "id": 15,
+      "class_name": "bench",
+      "class_id": 14,
+      "model": "ml/weights/students/etudiant_15_bench.pt"
+    },
+    {
+      "id": 16,
+      "class_name": "bottle",
+      "class_id": 15,
+      "model": "ml/weights/students/etudiant_16_bottle.pt"
+    },
+    {
+      "id": 17,
+      "class_name": "backpack",
+      "class_id": 16,
+      "model": "ml/weights/students/etudiant_17_backpack.pt"
+    },
+    {
+      "id": 18,
+      "class_name": "train",
+      "class_id": 17,
+      "model": "ml/weights/students/etudiant_18_train.pt"
+    }
+  ]
+}

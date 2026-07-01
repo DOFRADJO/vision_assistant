@@ -1,0 +1,26 @@
+{
+  "nc": 18,
+  "names": [
+    "person",
+    "car",
+    "bus",
+    "truck",
+    "bicycle",
+    "motorcycle",
+    "traffic_light",
+    "stop_sign",
+    "chair",
+    "bed",
+    "table",
+    "dog",
+    "handbag",
+    "fire_hydrant",
+    "bench",
+    "bottle",
+    "backpack",
+    "train"
+  ],
+  "model": "navis_18classes.onnx",
+  "input_size": 640,
+  "source": "yolov8n COCO pretrained"
+}

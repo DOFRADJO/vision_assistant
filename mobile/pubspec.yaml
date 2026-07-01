@@ -1,0 +1,62 @@
+name: navis
+description: "NAVIS — Vision assistee vocale pour personnes malvoyantes"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.11.4
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+  go_router: ^14.8.1
+  flutter_riverpod: ^2.6.1
+  crypto: ^3.0.6
+  sqflite: ^2.4.2
+  path: ^1.9.1
+  path_provider: ^2.1.5
+  shared_preferences: ^2.5.3
+  camera: ^0.11.1
+  flutter_tts: ^4.2.2
+  speech_to_text: ^7.0.0
+  flutter_local_notifications: ^19.0.0
+  vibration: ^3.1.3
+  image: ^4.5.4
+  flutter_onnxruntime: ^1.4.3
+  in_app_review: ^2.0.10
+  share_plus: ^10.1.4
+  intl: ^0.20.2
+  permission_handler: ^11.4.0
+  video_player: ^2.9.5
+  video_thumbnail: ^0.5.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  sqflite_common_ffi: ^2.3.5
+  flutter_launcher_icons: ^0.14.3
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: assets/icon/app_icon.png
+  adaptive_icon_background: "#0B5BD4"
+  adaptive_icon_foreground: assets/icon/app_icon.png
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/models/
+    - assets/config/
+    - assets/videos/demo.mp4
+  fonts:
+    - family: Poppins
+      fonts:
+        - asset: assets/fonts/Poppins-Regular.ttf
+        - asset: assets/fonts/Poppins-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Poppins-Bold.ttf
+          weight: 700
