@@ -2,3 +2,10 @@ phone
 laptop
 monitor
 tv
+tablet
+keyboard
+mouse
+printer
+microphone
+headphones
+camera
